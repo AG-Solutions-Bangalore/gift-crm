@@ -106,35 +106,20 @@ export default function AddProductForm({ formData, setFormData, onReset, onSave 
             </div>
           </div>
 
-          {/* Row 2: Slug & SKU */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                URL Slug (slug)
-              </label>
-              <input
-                type="text"
-                value={formData.slug || ''}
-                onChange={(e) => {
-                  setFormData(prev => ({ ...prev, slug: e.target.value, slugManuallyEdited: true }));
-                }}
-                placeholder="e.g. chocolate-truffle-cake"
-                className="w-full px-3.5 py-2.5 bg-slate-50 text-xs font-mono text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                SKU Code (sku)
-              </label>
-              <input
-                type="text"
-                value={formData.sku || ''}
-                onChange={(e) => handleChange('sku', e.target.value)}
-                placeholder="e.g. CAKE-001"
-                className="w-full px-3.5 py-2.5 bg-slate-50 text-xs font-mono text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
-              />
-            </div>
+          {/* Row 2: Slug */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              URL Slug (slug)
+            </label>
+            <input
+              type="text"
+              value={formData.slug || ''}
+              onChange={(e) => {
+                setFormData(prev => ({ ...prev, slug: e.target.value, slugManuallyEdited: true }));
+              }}
+              placeholder="e.g. chocolate-truffle-cake"
+              className="w-full px-3.5 py-2.5 bg-slate-50 text-xs font-mono text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+            />
           </div>
 
           {/* Row 3: Price, Sale Price, Bulk Price */}

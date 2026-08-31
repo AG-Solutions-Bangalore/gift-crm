@@ -74,6 +74,12 @@ export default function EnquiryReportPage() {
           <h3 className="text-base font-bold text-slate-900">Comprehensive Enquiry Log</h3>
           {loading ? (
             <div className="p-8 text-center text-xs font-semibold text-slate-400">Generating report...</div>
+          ) : !report?.data || report.data.length === 0 ? (
+            <div className="p-8 text-center text-xs font-semibold text-slate-400 space-y-1">
+              <BarChart3 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm font-bold text-slate-600">No Enquiry Records Available</p>
+              <p className="text-xs text-slate-400">Customer enquiries will appear here once submitted.</p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">

@@ -5,21 +5,13 @@ import MainLayout from '../components/layout/MainLayout';
 
 const defaultCatalogData = {
   brands: [
-    { id: 1, name: 'ArtisanCraft', country: 'India', status: 'Active' },
-    { id: 2, name: 'ChocoLux', country: 'Belgium', status: 'Active' },
-    { id: 3, name: 'UrbanHide', country: 'Italy', status: 'Active' },
-    { id: 4, name: 'FloraBloom', country: 'India', status: 'Active' }
+    { id: 1, name: 'ArtisanCraft', country: 'India', status: 'Active' }
   ],
   tags: [
-    { id: 1, name: 'Bestseller', color: 'bg-purple-100 text-purple-700' },
-    { id: 2, name: 'Eco-Friendly', color: 'bg-emerald-100 text-emerald-700' },
-    { id: 3, name: 'Executive', color: 'bg-blue-100 text-blue-700' },
-    { id: 4, name: 'Handcrafted', color: 'bg-amber-100 text-amber-700' }
+    { id: 1, name: 'Bestseller', color: 'bg-purple-100 text-purple-700' }
   ],
   vendors: [
-    { id: 1, name: 'Heritage Crafts Co.', phone: '+91 98765 00001', location: 'Jaipur' },
-    { id: 2, name: 'ChocoLux Artisans', phone: '+91 98765 00002', location: 'Mumbai' },
-    { id: 3, name: 'UrbanHide Studio', phone: '+91 98765 00003', location: 'Kanpur' }
+    { id: 1, name: 'Heritage Crafts Co.', phone: '+91 98765 00001', location: 'Jaipur' }
   ]
 };
 

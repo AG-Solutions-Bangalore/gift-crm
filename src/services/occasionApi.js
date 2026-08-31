@@ -1,16 +1,10 @@
 // Occasion API Service - Matched to backend schema: Occasions
 // Fields: ID, Name, Slug, status
 
-const STORAGE_KEY = 'utsav_occasions_schema';
+const STORAGE_KEY = 'utsav_occasions_v2';
 
 const initialOccasions = [
-  { id: 1, name: 'Birthday', slug: 'birthday', status: 'Active' },
-  { id: 2, name: 'Anniversary', slug: 'anniversary', status: 'Active' },
-  { id: 3, name: 'Wedding', slug: 'wedding', status: 'Active' },
-  { id: 4, name: 'Rakhi', slug: 'rakhi', status: 'Active' },
-  { id: 5, name: 'Congratulations', slug: 'congratulations', status: 'Active' },
-  { id: 6, name: 'Housewarming', slug: 'housewarming', status: 'Active' },
-  { id: 7, name: 'Baby Shower', slug: 'baby-shower', status: 'Active' }
+  { id: 1, name: 'Birthday', slug: 'birthday', status: 'Active' }
 ];
 
 const getStoredOccasions = () => {
