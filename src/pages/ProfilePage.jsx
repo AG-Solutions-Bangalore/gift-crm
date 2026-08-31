@@ -8,7 +8,7 @@ import { fetchProfile, updateProfile } from '../services/api';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { logout } = useAuthContext();
+  const { token, logout } = useAuthContext();
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -18,7 +18,7 @@ export default function ProfilePage() {
   const loadProfile = async () => {
     setLoading(true);
     try {
-      const res = await fetchProfile();
+      const res = await fetchProfile(token);
       const data = res?.data || res?.profile || res?.user || res || {};
       setProfile(data);
       setForm({
@@ -59,7 +59,7 @@ export default function ProfilePage() {
 
     setSaving(true);
     try {
-      const res = await updateProfile({ mobile: mobileVal, email: emailVal });
+      const res = await updateProfile({ mobile: mobileVal, email: emailVal }, token);
       toast.success(res?.message || 'Profile details updated successfully.');
       await loadProfile();
     } catch (err) {
@@ -74,6 +74,18 @@ export default function ProfilePage() {
     navigate('/login');
   };
 
+  const handleUpdateAvatar = (newAvatar) => {
+    setProfile((prev) => ({ ...prev, avatar: newAvatar }));
+    const saved = localStorage.getItem('gift_user');
+    if (saved) {
+      try {
+        const u = JSON.parse(saved);
+        u.avatar = newAvatar;
+        localStorage.setItem('gift_user', JSON.stringify(u));
+      } catch (e) {}
+    }
+  };
+
   return (
     <MainLayout>
       <ProfileView
@@ -84,6 +96,7 @@ export default function ProfilePage() {
         onChange={handleChange}
         onSubmit={handleSubmit}
         onLogout={handleLogout}
+        onUpdateAvatar={handleUpdateAvatar}
       />
     </MainLayout>
   );

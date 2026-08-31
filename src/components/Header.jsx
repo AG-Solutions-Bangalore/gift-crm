@@ -19,7 +19,7 @@ const getHeaderDetails = (pathname) => {
     '/change-password': { title: 'Change Security Password', category: 'Account', page: 'Change Password' }
   };
 
-  return routes[pathname] || { title: 'UtsavGifts Management', category: 'Admin', page: 'Overview' };
+  return routes[pathname] || { title: 'Gift Management', category: 'Admin', page: 'Overview' };
 };
 
 export default function Header() {
@@ -27,7 +27,7 @@ export default function Header() {
   const details = getHeaderDetails(location.pathname);
 
   useEffect(() => {
-    document.title = details.title ? `UtsavGifts CRM - ${details.title}` : 'UtsavGifts CRM';
+    document.title = details.title ? `Gift CRM - ${details.title}` : 'Gift CRM';
   }, [details.title]);
 
   return (

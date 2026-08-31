@@ -1,18 +1,18 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Gift, 
-  Home, 
-  Package, 
-  PlusCircle, 
-  Award, 
-  Folders, 
-  Calendar, 
-  Tag, 
-  Store, 
-  Users, 
-  ChevronDown, 
-  Settings, 
+import {
+  Gift,
+  Home,
+  Package,
+  PlusCircle,
+  Award,
+  Folders,
+  Calendar,
+  Tag,
+  Store,
+  Users,
+  ChevronDown,
+  Settings,
   LogOut,
   MessageSquare,
   BarChart3,
@@ -58,25 +58,25 @@ export default function Sidebar() {
         { path: '/reports/enquiry', label: 'Enquiry Reports', icon: BarChart3 }
       ]
     },
-    {
-      title: 'ACCOUNT',
-      items: [
-        { path: '/profile', label: 'Profile', icon: User },
-        { path: '/change-password', label: 'Change Password', icon: KeyRound }
-      ]
-    }
+    // {
+    //   title: 'ACCOUNT',
+    //   items: [
+    //     { path: '/profile', label: 'Profile', icon: User },
+    //     { path: '/change-password', label: 'Change Password', icon: KeyRound }
+    //   ]
+    // }
   ];
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
+  // const handleLogout = async () => {
+  //   await logout();
+  //   navigate('/login');
+  // };
 
   return (
     <aside className="w-64 bg-[#12102e] text-slate-300 flex flex-col h-screen sticky top-0 border-r border-slate-800/60 shadow-xl select-none z-30 shrink-0">
-      
+
       {/* 1. TOP FIXED: LOGO AND SHOP NAME */}
-      <div 
+      <div
         onClick={() => navigate('/')}
         className="p-5 border-b border-slate-800/80 flex flex-col items-center text-center shrink-0 cursor-pointer group"
       >
@@ -88,7 +88,7 @@ export default function Sidebar() {
           </div>
           <div className="text-left">
             <h1 className="text-xl font-bold text-white tracking-tight leading-none font-sans">
-              UtsavGifts
+              Gift
             </h1>
             <span className="text-[10px] font-semibold tracking-widest text-purple-400 uppercase">CRM Admin</span>
           </div>
@@ -113,15 +113,13 @@ export default function Sidebar() {
                   <button
                     key={item.path}
                     onClick={() => navigate(item.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group ${
-                      isActive
-                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/50 font-semibold'
-                        : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group ${isActive
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/50 font-semibold'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                      }`}
                   >
-                    <Icon className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
-                      isActive ? 'text-white' : 'text-slate-400 group-hover:text-purple-400'
-                    }`} />
+                    <Icon className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-purple-400'
+                      }`} />
                     <span>{item.label}</span>
                   </button>
                 );
@@ -133,7 +131,7 @@ export default function Sidebar() {
 
       {/* 3. BOTTOM: ADMIN USER CARD & FOOTER */}
       <div className="p-3 border-t border-slate-800/80 bg-[#0e0c24] shrink-0 space-y-3">
-        <div 
+        <div
           onClick={() => navigate('/profile')}
           className="flex items-center justify-between p-2 rounded-xl bg-slate-800/50 border border-slate-700/40 hover:bg-slate-800 transition-colors cursor-pointer group"
         >
@@ -141,9 +139,13 @@ export default function Sidebar() {
             <div className="relative">
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-200 p-0.5 shadow-md">
                 <img
-                  src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=AdminUser&backgroundColor=ffdfbf"}
+                  src={user?.avatar && typeof user.avatar === 'string' && user.avatar !== 'null' ? user.avatar : '/assets/avatars/profileimg.jpg'}
                   alt="Admin Avatar"
-                  className="w-full h-full rounded-full bg-amber-100 object-cover"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = '/assets/avatars/profileimg.jpg';
+                  }}
+                  className="w-full h-full rounded-full bg-amber-100 object-cover object-top"
                 />
               </div>
               <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#12102e] rounded-full"></span>
@@ -161,7 +163,7 @@ export default function Sidebar() {
         </div>
 
         {/* Quick Action Footer Buttons */}
-        <div className="flex items-center justify-around pt-1">
+        {/* <div className="flex items-center justify-around pt-1">
           <button 
             onClick={() => navigate('/profile')}
             title="Profile Settings"
@@ -176,7 +178,7 @@ export default function Sidebar() {
           >
             <LogOut className="w-4 h-4" />
           </button>
-        </div>
+        </div> */}
       </div>
 
     </aside>

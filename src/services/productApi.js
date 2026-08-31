@@ -1,7 +1,7 @@
 // Product API Service - Matched to backend schema: Products, Products_Image, Products_Variants
 // Fields: ID, Product Name, Brand, Slug, Length, Width, Height, Price, Sale Price, Bulk price, Weight, Is_variants, Status
 
-const STORAGE_KEY = 'utsav_products_schema';
+const STORAGE_KEY = 'gift_products_schema';
 
 const initialProducts = [
   {

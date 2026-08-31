@@ -1,6 +1,6 @@
-// Enquiry & Report API Mock Service for UtsavGifts CRM
+// Enquiry & Report API Mock Service for Gift CRM
 
-const STORAGE_KEY = 'utsav_enquiries_v2';
+const STORAGE_KEY = 'gift_enquiries_v2';
 
 const initialEnquiries = [];
 

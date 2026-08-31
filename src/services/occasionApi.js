@@ -1,7 +1,7 @@
 // Occasion API Service - Matched to backend schema: Occasions
 // Fields: ID, Name, Slug, status
 
-const STORAGE_KEY = 'utsav_occasions_v2';
+const STORAGE_KEY = 'gift_occasions_v2';
 
 const initialOccasions = [
   { id: 1, name: 'Birthday', slug: 'birthday', status: 'Active' }
