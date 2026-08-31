@@ -9,8 +9,7 @@ import {
   Store, 
   Users, 
   ImagePlus,
-  DollarSign,
-  Barcode
+  DollarSign
 } from 'lucide-react';
 
 export default function ProductPreview({ formData }) {
@@ -19,7 +18,6 @@ export default function ProductPreview({ formData }) {
 
   const previewItems = [
     { label: 'Product Name', value: name, icon: Package },
-    { label: 'SKU Code', value: formData.sku, icon: Barcode },
     { label: 'Regular Price', value: formData.price ? `₹ ${formData.price}` : '', icon: DollarSign },
     { label: 'Sale Price', value: salePrice ? `₹ ${salePrice}` : '', icon: DollarSign },
     { label: 'Weight', value: formData.weight, icon: Tag },

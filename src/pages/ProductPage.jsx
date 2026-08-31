@@ -42,10 +42,8 @@ export default function ProductPage() {
   const filteredProducts = products.filter(p => {
     const name = p.product_name || p.productName || '';
     const brand = p.brand || '';
-    const sku = p.sku || '';
     return name.toLowerCase().includes(search.toLowerCase()) ||
-           brand.toLowerCase().includes(search.toLowerCase()) ||
-           sku.toLowerCase().includes(search.toLowerCase());
+           brand.toLowerCase().includes(search.toLowerCase());
   });
 
   return (
@@ -57,7 +55,7 @@ export default function ProductPage() {
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search by product_name, brand, or sku..."
+              placeholder="Search by product name or brand..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 focus:bg-white transition-all"
@@ -113,7 +111,6 @@ export default function ProductPage() {
                     <th className="px-6 py-3.5">ID</th>
                     <th className="px-6 py-3.5">Product Name</th>
                     <th className="px-6 py-3.5">Brand</th>
-                    <th className="px-6 py-3.5">SKU</th>
                     <th className="px-6 py-3.5">Regular Price</th>
                     <th className="px-6 py-3.5">Sale Price</th>
                     <th className="px-6 py-3.5">Bulk Price</th>
@@ -138,7 +135,6 @@ export default function ProductPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-slate-700 font-semibold">{p.brand || '—'}</td>
-                        <td className="px-6 py-4 font-mono font-semibold text-slate-500">{p.sku || '—'}</td>
                         <td className="px-6 py-4 font-bold text-slate-700">₹ {p.price}</td>
                         <td className="px-6 py-4 font-bold text-purple-600">₹ {salePrice || p.price}</td>
                         <td className="px-6 py-4 font-bold text-slate-600">{bulkPrice ? `₹ ${bulkPrice}` : '—'}</td>
@@ -189,9 +185,6 @@ export default function ProductPage() {
                     </div>
 
                     <div className="p-5 space-y-2">
-                      <span className="text-[10px] font-mono font-bold text-purple-600 uppercase tracking-wider">
-                        {p.sku}
-                      </span>
                       <h3 className="text-sm font-bold text-slate-900 line-clamp-2 leading-tight">
                         {name}
                       </h3>

@@ -1,17 +1,10 @@
 // Category API Service - Matched to backend schema: Categories
 // Fields: ID, Parent ID, Category Name, Slug, Sort, images, images_alt, status
 
-const STORAGE_KEY = 'utsav_categories_schema';
+const STORAGE_KEY = 'utsav_categories_v2';
 
 const initialCategories = [
-  { id: 1, parent_id: null, category_name: 'Birthday', slug: 'birthday', sort: 1, images: '', images_alt: 'Birthday', status: 'Active' },
-  { id: 2, parent_id: 1, category_name: 'Birthday Gifts', slug: 'birthday-gifts', sort: 2, images: '', images_alt: 'Birthday Gifts', status: 'Active' },
-  { id: 3, parent_id: 1, category_name: 'Birthday Cakes', slug: 'birthday-cakes', sort: 2, images: '', images_alt: 'Birthday Cakes', status: 'Active' },
-  { id: 4, parent_id: 3, category_name: 'Chocolate Cakes', slug: 'chocolate-cakes', sort: 3, images: '', images_alt: 'Chocolate Cakes', status: 'Active' },
-  { id: 5, parent_id: 3, category_name: 'Red Velvet Cakes', slug: 'red-velvet-cakes', sort: 3, images: '', images_alt: 'Red Velvet Cakes', status: 'Active' },
-  { id: 6, parent_id: 3, category_name: 'Photo Cakes', slug: 'photo-cakes', sort: 3, images: '', images_alt: 'Photo Cakes', status: 'Active' },
-  { id: 7, parent_id: 3, category_name: 'Eggless Cakes', slug: 'eggless-cakes', sort: 3, images: '', images_alt: 'Eggless Cakes', status: 'Active' },
-  { id: 8, parent_id: 1, category_name: 'Birthday Flowers', slug: 'birthday-flowers', sort: 2, images: '', images_alt: 'Birthday Flowers', status: 'Active' }
+  { id: 1, parent_id: null, category_name: 'Birthday', slug: 'birthday', sort: 1, images: '', images_alt: 'Birthday', status: 'Active' }
 ];
 
 const getStoredCategories = () => {

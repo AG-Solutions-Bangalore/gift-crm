@@ -1,5 +1,5 @@
 // Product API Service - Matched to backend schema: Products, Products_Image, Products_Variants
-// Fields: ID, Product Name, Brand, Slug, SKU, Length, Width, Height, Price, Sale Price, Bulk price, Weight, Is_variants, Status
+// Fields: ID, Product Name, Brand, Slug, Length, Width, Height, Price, Sale Price, Bulk price, Weight, Is_variants, Status
 
 const STORAGE_KEY = 'utsav_products_schema';
 
@@ -9,7 +9,6 @@ const initialProducts = [
     product_name: 'Chocolate Truffle Cake',
     brand: 'CakeStudio',
     slug: 'chocolate-truffle-cake',
-    sku: 'CAKE-001',
     length: '',
     width: '',
     height: '',
@@ -28,7 +27,6 @@ const initialProducts = [
     product_name: 'Red Velvet Cake',
     brand: 'CakeStudio',
     slug: 'red-velvet-cake',
-    sku: 'CAKE-002',
     length: '',
     width: '',
     height: '',
@@ -47,7 +45,6 @@ const initialProducts = [
     product_name: 'Red Rose Bouquet',
     brand: 'FloraBloom',
     slug: 'red-rose-bouquet',
-    sku: 'FLOWER-001',
     length: '',
     width: '',
     height: '',
@@ -91,7 +88,6 @@ export const createProduct = async (productData) => {
     product_name: name,
     brand: productData.brand || 'General',
     slug: productData.slug || name.toLowerCase().replace(/\s+/g, '-'),
-    sku: productData.sku || `SKU-${Date.now().toString().slice(-4)}`,
     length: productData.length || '',
     width: productData.width || '',
     height: productData.height || '',
