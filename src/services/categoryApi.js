@@ -1,7 +1,7 @@
 // Category API Service - Matched to backend schema: Categories
 // Fields: ID, Parent ID, Category Name, Slug, Sort, images, images_alt, status
 
-const STORAGE_KEY = 'utsav_categories_v2';
+const STORAGE_KEY = 'gift_categories_v2';
 
 const initialCategories = [
   { id: 1, parent_id: null, category_name: 'Birthday', slug: 'birthday', sort: 1, images: '', images_alt: 'Birthday', status: 'Active' }

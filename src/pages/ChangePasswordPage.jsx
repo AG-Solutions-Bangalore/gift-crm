@@ -32,7 +32,7 @@ export default function ChangePasswordPage() {
     setIsSubmitting(true);
     try {
       await changeUserPassword({
-        username: user?.username || 'admin',
+        username: user?.username || user?.mobile || '9999999999',
         old_password: form.old_password,
         new_password: form.new_password
       });

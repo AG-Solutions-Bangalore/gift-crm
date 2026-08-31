@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Gift, User, Mail, ArrowLeft, Send } from 'lucide-react';
 import { sendPasswordResetEmail } from '../services/api';
 
@@ -12,6 +13,14 @@ export default function ForgotPasswordPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'username') {
+      if (/[^0-9]/.test(value)) {
+        toast.error('Username must contain only numbers');
+        const cleanVal = value.replace(/[^0-9]/g, '');
+        setForm((prev) => ({ ...prev, username: cleanVal }));
+        return;
+      }
+    }
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -19,12 +28,29 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setError('');
     setMessage('');
+
+    const cleanUsername = String(form.username || '').trim();
+    const cleanEmail = String(form.email || '').trim();
+
+    if (!cleanUsername) {
+      toast.error('Please enter your username');
+      return;
+    }
+    if (!cleanEmail) {
+      toast.error('Please enter your email address');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const response = await sendPasswordResetEmail(form);
-      setMessage(response?.message || 'Password reset request sent successfully.');
+      const response = await sendPasswordResetEmail({ username: cleanUsername, email: cleanEmail });
+      const msg = response?.message ;
+      setMessage(msg);
+      toast.success(msg);
     } catch (err) {
-      setError(err.message || 'Unable to send password reset request.');
+      const errMsg = err.message || 'Unable to send password reset request.';
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsSubmitting(false);
     }

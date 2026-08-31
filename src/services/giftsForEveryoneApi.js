@@ -1,7 +1,7 @@
 // Recipients / Gifts For Everyone API Service - Matched to backend schema: Recipients
 // Fields: ID, Name, Slug, status
 
-const STORAGE_KEY = 'utsav_recipients_v2';
+const STORAGE_KEY = 'gift_recipients_v2';
 
 const initialRecipients = [
   { id: 1, name: 'For Him', slug: 'for-him', status: 'Active' }

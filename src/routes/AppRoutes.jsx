@@ -14,6 +14,7 @@ import AddProductPage from '../pages/AddProductPage';
 import CategoryPage from '../pages/CategoryPage';
 import OccasionPage from '../pages/OccasionPage';
 import GiftsForEveryonePage from '../pages/GiftsForEveryonePage';
+import BrandPage from '../pages/BrandPage';
 import EnquiryPage from '../pages/EnquiryPage';
 import EnquiryReportPage from '../pages/EnquiryReportPage';
 import CatalogManagementPage from '../pages/CatalogManagementPage';
@@ -35,7 +36,7 @@ export default function AppRoutes() {
         <Route path="/categories" element={<CategoryPage />} />
         <Route path="/occasions" element={<OccasionPage />} />
         <Route path="/gifts-for-everyone" element={<GiftsForEveryonePage />} />
-        <Route path="/brands" element={<CatalogManagementPage type="brands" />} />
+        <Route path="/brands" element={<BrandPage />} />
         <Route path="/tags" element={<CatalogManagementPage type="tags" />} />
         <Route path="/vendors" element={<CatalogManagementPage type="vendors" />} />
         <Route path="/enquiries" element={<EnquiryPage />} />

@@ -12,21 +12,21 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    document.title = 'UtsavGifts CRM - Login';
+    document.title = 'Gift CRM - Login';
   }, []);
 
   const handleLogin = async (formValues) => {
     setError('');
     setIsSubmitting(true);
     try {
-      const response = await loginUser({
-        username: formValues.username,
-        password: formValues.password,
-      });
+      const username = String(formValues?.username || '').trim();
+      const password = String(formValues?.password || '').trim();
+
+      const response = await loginUser({ username, password });
       await login(response);
       navigate('/');
     } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      setError(err.message || 'Invalid username or password.');
     } finally {
       setIsSubmitting(false);
     }
@@ -42,7 +42,7 @@ export default function LoginPage() {
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center mb-8">
           <h1 className="text-2xl font-black text-slate-900 tracking-tight font-sans">
-            UtsavGifts CRM
+            Gift CRM
           </h1>
           <p className="text-xs font-semibold text-slate-400 mt-1 tracking-wide">
             Admin Portal • Making Every Moment Special
