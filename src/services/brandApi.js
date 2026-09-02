@@ -1,121 +1,266 @@
-// Brand API Service - Matched to backend API: /brand
-// POST Endpoint: https://memorycreators.in/crmapi/public/api/brand
-// Body: { "brands_name": "", "brands_image": "" }
+// Brand API Service - All 6 Brand Endpoints
+import { api } from './api';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://memorycreators.in/crmapi/public/api';
-const VITE_KEY = import.meta.env.VITE_KEY || '4a8f9b2c3d5e7f1a8b9c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3';
-const VITE_SECRET_KEY = import.meta.env.VITE_SECRET_KEY || '9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8';
-
-const STORAGE_KEY = 'gift_brands_v2';
-
-const initialBrands = [
-  { id: 1, brands_name: 'ArtisanCraft', brands_image: '/assets/avatars/executive_3d_1.jpg', status: 'Active' },
-  { id: 2, brands_name: 'ChocoLux', brands_image: '', status: 'Active' },
-  { id: 3, brands_name: 'UrbanHide', brands_image: '', status: 'Active' },
-  { id: 4, brands_name: 'FloraBloom', brands_image: '', status: 'Active' },
-  { id: 5, brands_name: 'CakeStudio', brands_image: '', status: 'Active' }
-];
-
-const getStoredBrands = () => {
-  const data = localStorage.getItem(STORAGE_KEY);
-  if (data) {
-    try { return JSON.parse(data); } catch (e) {}
+const extractErrorMessage = (error, defaultMsg = 'Operation failed') => {
+  if (error?.response?.data?.errors) {
+    const errorList = Object.values(error.response.data.errors).flat();
+    if (errorList.length > 0) return errorList.join(' ');
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(initialBrands));
-  return initialBrands;
+  return (
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.message ||
+    defaultMsg
+  );
 };
 
-const saveStoredBrands = (items) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-};
-
-export const fetchBrands = async (token) => {
-  return { success: true, data: getStoredBrands() };
-};
-
+/**
+ * 1. POST /brand (Create Brand)
+ * URL: https://memorycreators.in/crmapi/public/api/brand
+ * Headers: Authorization: Bearer <token>
+ * Body: { "brands_name": "", "brands_image": "" }
+ */
 export const createBrand = async (brandData, token) => {
   const activeToken = token || localStorage.getItem('gift_token');
+  const brandsName = String(brandData.brands_name || brandData.name || '').trim();
+  const imageFile =
+    brandData.image_file ||
+    (brandData.brands_image instanceof File ? brandData.brands_image : null);
+
+  // If a binary File is uploaded, send via FormData
+  if (imageFile) {
+    const formData = new FormData();
+    formData.append('brands_name', brandsName);
+    formData.append('brands_image', imageFile);
+
+    try {
+      const response = await api.post('/brand', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(extractErrorMessage(error, 'Unable to create brand. Please try again.'));
+    }
+  }
+
+  // Otherwise send clean JSON payload
   const payload = {
-    brands_name: String(brandData.brands_name || brandData.name || '').trim(),
-    brands_image: String(brandData.brands_image || brandData.image || '').trim()
+    brands_name: brandsName,
+    brands_image: String(brandData.brands_image || brandData.image || '').trim(),
   };
 
   try {
-    
-    const url = `${API_BASE_URL}/brand`;
-    const response = await fetch(url, {
-      method: 'POST',
+    const response = await api.post('/brand', payload, {
       headers: {
-        'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${activeToken || ''}`,
-        'x-api-key': VITE_KEY,
-        'x-api-secret': VITE_SECRET_KEY,
+        ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },
-      body: JSON.stringify(payload),
     });
-
-    const data = await response.json();
-    if (!response.ok || (data.code && data.code !== 200 && data.code !== 201)) {
-      console.warn('[createBrand] Backend notice, saving locally:', data.message || response.statusText);
-      const brands = getStoredBrands();
-      const newBrand = {
-        id: Date.now(),
-        brands_name: payload.brands_name,
-        brands_image: payload.brands_image,
-        status: brandData.status || 'Active'
-      };
-      const updated = [newBrand, ...brands];
-      saveStoredBrands(updated);
-      return { success: true, message: data.message || 'Brand created successfully', data: newBrand };
-    }
-    const createdItem = data?.data || data;
-    const brands = getStoredBrands();
-    const newBrand = {
-      id: createdItem?.id || Date.now(),
-      brands_name: payload.brands_name,
-      brands_image: payload.brands_image,
-      status: brandData.status || 'Active'
-    };
-    saveStoredBrands([newBrand, ...brands]);
-    return { success: true, message: data.message || 'Brand created successfully', data: newBrand };
+    return response.data;
   } catch (error) {
-    console.warn('[createBrand] Network notice, saving locally:', error.message);
-    const brands = getStoredBrands();
-    const newBrand = {
-      id: Date.now(),
-      brands_name: payload.brands_name,
-      brands_image: payload.brands_image,
-      status: brandData.status || 'Active'
-    };
-    const updated = [newBrand, ...brands];
-    saveStoredBrands(updated);
-    return { success: true, message: 'Brand created successfully', data: newBrand };
+    throw new Error(extractErrorMessage(error, 'Unable to create brand. Please try again.'));
   }
 };
 
-export const updateBrand = async (id, brandData, token) => {
-  const brands = getStoredBrands();
-  const name = String(brandData.brands_name || brandData.name || '').trim();
-  const img = String(brandData.brands_image || brandData.image || '').trim();
-  const updated = brands.map((b) => {
-    if (b.id === id) {
-      return {
-        ...b,
-        brands_name: name || b.brands_name,
-        brands_image: img || b.brands_image,
-        status: brandData.status || b.status
-      };
+/**
+ * 2. GET /brand (Brand List)
+ * URL: https://memorycreators.in/crmapi/public/api/brand
+ * Headers: Authorization: Bearer <token>
+ */
+export const fetchBrands = async (token) => {
+  const activeToken = token || localStorage.getItem('gift_token');
+  try {
+    const response = await api.get('/brand', {
+      headers: {
+        ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+      },
+    });
+    return response.data;
+  } catch (error) {
+    // Fallback: If backend BrandController@index has a server error (e.g. $complaints typo on line 38), try /activeBrands
+    try {
+      console.warn('[brandApi] /brand returned error, falling back to /activeBrands:', error.message);
+      const fallbackResponse = await api.get('/activeBrands', {
+        headers: {
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+      });
+      return fallbackResponse.data;
+    } catch (fbErr) {
+      throw new Error(extractErrorMessage(error, 'Failed to fetch brands.'));
     }
-    return b;
-  });
-  saveStoredBrands(updated);
-  return { success: true, message: 'Brand updated successfully' };
+  }
+};
+export const getBrandList = fetchBrands;
+export const fetchBrandList = fetchBrands;
+
+/**
+ * 3. GET /brand/{id} (Fetch Brand by ID)
+ * URL: https://memorycreators.in/crmapi/public/api/brand/{id}
+ * Headers: Authorization: Bearer <token>
+ */
+export const fetchBrandById = async (id, token) => {
+  const activeToken = token || localStorage.getItem('gift_token');
+  try {
+    const response = await api.get(`/brand/${id}`, {
+      headers: {
+        ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, `Failed to fetch brand #${id}.`));
+  }
+};
+export const getBrandById = fetchBrandById;
+
+/**
+ * 4. PUT /brand/{id} (Update Brand)
+ * URL: https://memorycreators.in/crmapi/public/api/brand/{id}
+ * Headers: Authorization: Bearer <token>
+ * Body: { "brands_name": "", "brands_image": "", "brands_status": "Active" }
+ */
+export const updateBrand = async (id, brandData, token) => {
+  const activeToken = token || localStorage.getItem('gift_token');
+  const brandsName = String(brandData.brands_name || brandData.name || '').trim();
+  const brandsStatus = String(brandData.brands_status || brandData.status || 'Active').trim();
+  const imageFile =
+    brandData.image_file ||
+    (brandData.brands_image instanceof File ? brandData.brands_image : null);
+
+  // If a binary File is uploaded, send via FormData with _method: PUT
+  if (imageFile) {
+    const formData = new FormData();
+    formData.append('brands_name', brandsName);
+    formData.append('brands_status', brandsStatus);
+    formData.append('brands_image', imageFile);
+    formData.append('_method', 'PUT');
+
+    try {
+      const response = await api.post(`/brand/${id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(extractErrorMessage(error, 'Unable to update brand.'));
+    }
+  }
+
+  // Otherwise send JSON payload
+  const payload = {
+    brands_name: brandsName,
+    brands_image: String(brandData.brands_image || brandData.image || '').trim(),
+    brands_status: brandsStatus,
+  };
+
+  try {
+    const response = await api.put(`/brand/${id}`, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, 'Unable to update brand.'));
+  }
 };
 
-export const deleteBrand = async (id) => {
-  const brands = getStoredBrands();
-  const updated = brands.filter((b) => b.id !== id);
-  saveStoredBrands(updated);
-  return { success: true, message: 'Brand deleted successfully' };
+/**
+ * 5. PATCH /brands/{id}/status (Update Brands Status)
+ * URL: https://memorycreators.in/crmapi/public/api/brands/{id}/status
+ * Headers: Authorization: Bearer <token>
+ * Body (FormData): brands_status ("Active" / "Inactive")
+ */
+export const updateBrandStatus = async (id, status, token) => {
+  const activeToken = token || localStorage.getItem('gift_token');
+  const cleanStatus = String(status || 'Active').trim();
+
+  const formData = new FormData();
+  formData.append('brands_status', cleanStatus);
+
+  try {
+    const response = await api.patch(`/brands/${id}/status`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+      },
+    });
+    return response.data;
+  } catch (patchErr) {
+    // Fallback: try POST with _method=PATCH if server router requires it
+    try {
+      const fbData = new FormData();
+      fbData.append('brands_status', cleanStatus);
+      fbData.append('_method', 'PATCH');
+      const response = await api.post(`/brands/${id}/status`, fbData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(extractErrorMessage(error, 'Unable to update brand status.'));
+    }
+  }
+};
+export const changeBrandStatus = updateBrandStatus;
+
+/**
+ * 6. GET /activeBrands (Active Brands List)
+ * URL: https://memorycreators.in/crmapi/public/api/activeBrands
+ * Headers: Authorization: Bearer <token>
+ */
+export const fetchActiveBrands = async (token) => {
+  const activeToken = token || localStorage.getItem('gift_token');
+  try {
+    const response = await api.get('/activeBrands', {
+      headers: {
+        ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, 'Failed to fetch active brands.'));
+  }
+};
+export const getActiveBrands = fetchActiveBrands;
+
+/**
+ * Delete Brand helper
+ */
+export const deleteBrand = async (id, token) => {
+  const activeToken = token || localStorage.getItem('gift_token');
+  try {
+    const response = await api.delete(`/brand/${id}`, {
+      headers: {
+        ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, 'Unable to delete brand.'));
+  }
+};
+
+export default {
+  createBrand,
+  fetchBrands,
+  getBrandList,
+  fetchBrandList,
+  fetchBrandById,
+  getBrandById,
+  updateBrand,
+  updateBrandStatus,
+  changeBrandStatus,
+  fetchActiveBrands,
+  getActiveBrands,
+  deleteBrand,
 };

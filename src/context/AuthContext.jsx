@@ -6,9 +6,21 @@ const TOKEN_KEY = 'gift_token';
 const USER_KEY = 'gift_user';
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || null);
+  const [token, setToken] = useState(() => {
+    const saved = localStorage.getItem(TOKEN_KEY);
+    if (saved && saved.startsWith('gift_mock_token_')) {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      return null;
+    }
+    return saved || null;
+  });
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem(USER_KEY);
+    const savedToken = localStorage.getItem(TOKEN_KEY);
+    if (savedToken && savedToken.startsWith('gift_mock_token_')) {
+      return null;
+    }
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -26,20 +38,24 @@ export function AuthProvider({ children }) {
 
     const nextToken =
       userInfo?.token ||
-      responseData.token ||
-      responseData.access_token ||
-      'gift_mock_token_' + Date.now();
+      responseData?.token ||
+      responseData?.access_token ||
+      responseData?.data?.token;
+
+    if (!nextToken || String(nextToken).startsWith('gift_mock_token_')) {
+      throw new Error(responseData?.message || 'Login failed: Invalid or missing token from server.');
+    }
 
     const rawUser =
       userInfo?.user ||
-      responseData.user ||
+      responseData?.user ||
       responseData?.data?.user || {};
 
     const nextUser = {
       id: rawUser.id || 1,
-      username: rawUser.name || rawUser.mobile || 'admin',
+      username: rawUser.name || rawUser.mobile || 'Admin',
       name: rawUser.name || 'Administrator',
-      email: rawUser.email || 'admin@gmail.com',
+      email: rawUser.email || '',
       mobile: rawUser.mobile || '',
       role: rawUser.user_position || (rawUser.user_type === 2 ? 'Admin' : 'Super Admin'),
       avatar: rawUser.user_image || null,

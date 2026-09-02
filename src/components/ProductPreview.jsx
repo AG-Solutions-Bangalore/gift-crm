@@ -2,29 +2,62 @@ import React from 'react';
 import { 
   Eye, 
   Package, 
-  Award, 
-  Folders, 
-  Calendar, 
-  Tag, 
-  Store, 
-  Users, 
-  ImagePlus,
-  DollarSign
+  DollarSign, 
+  Barcode, 
+  Tag as TagIcon, 
+  Sparkles, 
+  ImagePlus, 
+  Layers
 } from 'lucide-react';
 
 export default function ProductPreview({ formData }) {
   const name = formData.product_name || formData.productName;
-  const salePrice = formData.sale_price || formData.salePrice;
+  const mrp = formData.product_mrp ?? formData.price;
+  const salePrice = formData.product_sale_price ?? formData.salePrice;
+  const hasVariants = Number(formData.has_variants) === 1;
+
+  const firstImage =
+    Array.isArray(formData.images) && formData.images.length > 0
+      ? typeof formData.images[0] === 'string'
+        ? formData.images[0]
+        : formData.images[0].product_images || formData.images[0].preview || formData.images[0].url
+      : null;
 
   const previewItems = [
     { label: 'Product Name', value: name, icon: Package },
-    { label: 'Regular Price', value: formData.price ? `₹ ${formData.price}` : '', icon: DollarSign },
-    { label: 'Sale Price', value: salePrice ? `₹ ${salePrice}` : '', icon: DollarSign },
-    { label: 'Weight', value: formData.weight, icon: Tag },
-    { label: 'Brand', value: formData.brand, icon: Award },
-    { label: 'Category', value: formData.category, icon: Folders },
-    { label: 'Occasions', value: formData.occasions, icon: Calendar },
-    { label: 'Recipients Tag', value: formData.giftsForEveryone || formData.recipients, icon: Users },
+    { label: 'Barcode', value: formData.product_barcode, icon: Barcode },
+    { 
+      label: 'Type', 
+      value: hasVariants ? `Variants (${formData.variants?.length || 0})` : 'Single Product', 
+      icon: Sparkles 
+    },
+    ...(hasVariants
+      ? []
+      : [
+          { label: 'MRP', value: mrp ? `₹ ${mrp}` : '', icon: DollarSign },
+          { label: 'Sale Price', value: salePrice ? `₹ ${salePrice}` : '', icon: DollarSign },
+          { label: 'Weight', value: formData.product_weight, icon: TagIcon },
+        ]),
+    {
+      label: 'Categories',
+      value: formData.category_ids?.length ? `${formData.category_ids.length} selected` : '',
+      icon: Layers
+    },
+    {
+      label: 'Occasions',
+      value: formData.occasion_ids?.length ? `${formData.occasion_ids.length} selected` : '',
+      icon: Layers
+    },
+    {
+      label: 'Vendors',
+      value: formData.vendor_ids?.length ? `${formData.vendor_ids.length} selected` : '',
+      icon: Layers
+    },
+    {
+      label: 'Tags',
+      value: formData.tag_ids?.length ? `${formData.tag_ids.length} selected` : '',
+      icon: TagIcon
+    }
   ];
 
   return (
@@ -35,8 +68,8 @@ export default function ProductPreview({ formData }) {
           <Eye className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-slate-800 tracking-tight">
-            Product Preview
+          <h2 className="text-base font-bold text-slate-800 tracking-tight">
+            Live Product Preview
           </h2>
           <p className="text-xs font-medium text-slate-500 mt-0.5">
             Real-time catalog entry summary
@@ -46,17 +79,16 @@ export default function ProductPreview({ formData }) {
 
       {/* Image Preview Canvas */}
       <div className="relative aspect-4/3 rounded-2xl bg-gradient-to-br from-slate-100 via-purple-50/50 to-indigo-50/40 border border-slate-200/70 flex items-center justify-center overflow-hidden mb-6 group">
-        {formData.images && formData.images.length > 0 ? (
+        {firstImage ? (
           <img
-            src={formData.images[0]}
+            src={firstImage}
             alt="Preview"
             className="w-full h-full object-cover rounded-2xl"
           />
         ) : (
           <div className="flex flex-col items-center justify-center text-slate-300">
-            <div className="w-24 h-20 border-4 border-purple-200/60 rounded-xl flex items-center justify-center bg-white/40 shadow-inner">
-              <div className="w-8 h-8 rounded-full bg-purple-200/60 -mt-6 -mr-8"></div>
-            </div>
+            <Package className="w-12 h-12 text-slate-300 mb-1" />
+            <span className="text-[11px] text-slate-400 font-medium">No Image Uploaded</span>
           </div>
         )}
 
