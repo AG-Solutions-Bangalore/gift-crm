@@ -1,47 +1,45 @@
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Award, Plus, Search, Edit3, X, CheckCircle2, XCircle, Upload, Filter } from 'lucide-react';
+import { Store, Plus, Search, Edit3, X, CheckCircle2, XCircle, Filter, Phone, MapPin, User } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import { useAuthContext } from '../context/AuthContext';
-import { useAppContext } from '../context/AppContext';
 import {
-  fetchBrands,
-  fetchBrandById,
-  createBrand,
-  updateBrand,
-  updateBrandStatus,
-  fetchActiveBrands
-} from '../services/brandApi';
+  fetchVendors,
+  fetchVendorById,
+  createVendor,
+  updateVendor,
+  updateVendorStatus,
+  fetchActiveVendors,
+} from '../services/vendorApi';
 
-export default function BrandPage() {
+export default function VendorPage() {
   const { token } = useAuthContext();
-  const { getImageUrl, noImageUrl } = useAppContext();
 
-  const [brands, setBrands] = useState([]);
+  const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [statusTogglingId, setStatusTogglingId] = useState(null);
   const [search, setSearch] = useState('');
   const [activeOnly, setActiveOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingBrand, setEditingBrand] = useState(null);
+  const [editingVendor, setEditingVendor] = useState(null);
 
   const [form, setForm] = useState({
-    brands_name: '',
-    brands_image: '',
-    brands_status: 'Active',
-    image_file: null,
-    image_preview: ''
+    vendor_name: '',
+    contact_name: '',
+    vendor_mobile: '',
+    vendor_address: '',
+    vendor_status: 'Active',
   });
 
-  const loadBrands = async () => {
+  const loadVendors = async () => {
     setLoading(true);
     try {
       let res;
       if (activeOnly) {
-        res = await fetchActiveBrands(token);
+        res = await fetchActiveVendors(token);
       } else {
-        res = await fetchBrands(token);
+        res = await fetchVendors(token);
       }
       
       let items = [];
@@ -51,104 +49,86 @@ export default function BrandPage() {
         items = res.data;
       } else if (Array.isArray(res?.data?.data)) {
         items = res.data.data;
-      } else if (Array.isArray(res?.brands)) {
-        items = res.brands;
-      } else if (Array.isArray(res?.data?.brands)) {
-        items = res.data.brands;
+      } else if (Array.isArray(res?.vendors)) {
+        items = res.vendors;
+      } else if (Array.isArray(res?.data?.vendors)) {
+        items = res.data.vendors;
       } else if (res?.data && typeof res.data === 'object') {
         items = Object.values(res.data).filter((item) => item && typeof item === 'object');
       }
 
-      setBrands(items);
+      setVendors(items);
     } catch (err) {
-      toast.error(err.message || 'Failed to load brands');
-      setBrands([]);
+      toast.error(err.message || 'Failed to load vendors');
+      setVendors([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadBrands();
+    loadVendors();
   }, [activeOnly]);
 
   const handleOpenCreate = () => {
-    setEditingBrand(null);
+    setEditingVendor(null);
     setForm({
-      brands_name: '',
-      brands_image: '',
-      brands_status: 'Active',
-      image_file: null,
-      image_preview: ''
+      vendor_name: '',
+      contact_name: '',
+      vendor_mobile: '',
+      vendor_address: '',
+      vendor_status: 'Active',
     });
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = async (brand) => {
-    setEditingBrand(brand);
+  const handleOpenEdit = async (vendor) => {
+    setEditingVendor(vendor);
     setForm({
-      brands_name: brand.brands_name || brand.name || '',
-      brands_image: brand.brands_image || brand.image || '',
-      brands_status: brand.brands_status || brand.status || 'Active',
-      image_file: null,
-      image_preview: ''
+      vendor_name: vendor.vendor_name || vendor.name || '',
+      contact_name: vendor.contact_name || '',
+      vendor_mobile: vendor.vendor_mobile || vendor.mobile || vendor.phone || '',
+      vendor_address: vendor.vendor_address || vendor.address || '',
+      vendor_status: vendor.vendor_status || vendor.status || 'Active',
     });
     setIsModalOpen(true);
 
     try {
-      const single = await fetchBrandById(brand.id, token);
+      const single = await fetchVendorById(vendor.id, token);
       const item = single?.data || single;
-      if (item && (item.brands_name || item.name)) {
+      if (item && (item.vendor_name || item.name)) {
         setForm((prev) => ({
           ...prev,
-          brands_name: item.brands_name || item.name || '',
-          brands_image: item.brands_image || item.image || '',
-          brands_status: item.brands_status || item.status || 'Active'
+          vendor_name: item.vendor_name || item.name || '',
+          contact_name: item.contact_name || '',
+          vendor_mobile: item.vendor_mobile || item.mobile || item.phone || '',
+          vendor_address: item.vendor_address || item.address || '',
+          vendor_status: item.vendor_status || item.status || 'Active',
         }));
       }
     } catch (err) {
-      console.warn('[BrandPage] Single brand fetch fallback:', err.message);
+      console.warn('[VendorPage] Single vendor fetch fallback:', err.message);
     }
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload a valid image file');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((prev) => ({
-        ...prev,
-        brands_image: file.name,
-        image_file: file,
-        image_preview: reader.result,
-        image_name: file.name
-      }));
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.brands_name.trim()) {
-      toast.error('Brand Name (brands_name) is required');
+    if (!form.vendor_name.trim()) {
+      toast.error('Vendor Name (vendor_name) is required');
       return;
     }
 
     setSubmitting(true);
     try {
-      if (editingBrand) {
-        await updateBrand(editingBrand.id, form, token);
-        toast.success('Brand updated successfully');
+      if (editingVendor) {
+        await updateVendor(editingVendor.id, form, token);
+        toast.success('Vendor updated successfully');
       } else {
-        const res = await createBrand(form, token);
-        toast.success(res?.message || 'Brand created successfully');
+        const res = await createVendor(form, token);
+        toast.success(res?.message || 'Vendor created successfully');
       }
       setIsModalOpen(false);
-      await loadBrands();
+      await loadVendors();
     } catch (err) {
       toast.error(err.message || 'Operation failed');
     } finally {
@@ -156,14 +136,14 @@ export default function BrandPage() {
     }
   };
 
-  const handleToggleStatus = async (brand) => {
-    const currentStatus = brand.brands_status || brand.status || 'Active';
+  const handleToggleStatus = async (vendor) => {
+    const currentStatus = vendor.vendor_status || vendor.status || 'Active';
     const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
-    setStatusTogglingId(brand.id);
+    setStatusTogglingId(vendor.id);
     try {
-      await updateBrandStatus(brand.id, newStatus, token);
-      toast.success(`Brand marked as ${newStatus}`);
-      await loadBrands();
+      await updateVendorStatus(vendor.id, newStatus, token);
+      toast.success(`Vendor marked as ${newStatus}`);
+      await loadVendors();
     } catch (err) {
       toast.error(err.message || 'Failed to update status');
     } finally {
@@ -171,10 +151,16 @@ export default function BrandPage() {
     }
   };
 
-  const safeBrands = Array.isArray(brands) ? brands : [];
-  const filteredBrands = safeBrands.filter((b) =>
-    (b.brands_name || b.name || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const safeVendors = Array.isArray(vendors) ? vendors : [];
+  const filteredVendors = safeVendors.filter((v) => {
+    const term = search.toLowerCase();
+    return (
+      (v.vendor_name || v.name || '').toLowerCase().includes(term) ||
+      (v.contact_name || '').toLowerCase().includes(term) ||
+      (v.vendor_mobile || v.mobile || '').toLowerCase().includes(term) ||
+      (v.vendor_address || v.address || '').toLowerCase().includes(term)
+    );
+  });
 
   return (
     <MainLayout>
@@ -185,7 +171,7 @@ export default function BrandPage() {
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search brands by name..."
+              placeholder="Search vendors by name, contact, mobile..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200/80 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 shadow-2xs"
@@ -202,7 +188,7 @@ export default function BrandPage() {
               }`}
             >
               <Filter className="w-3.5 h-3.5" />
-              <span>{activeOnly ? 'Showing: Active' : 'Filter: All Brands'}</span>
+              <span>{activeOnly ? 'Showing: Active' : 'Filter: All Vendors'}</span>
             </button>
 
             <button
@@ -210,19 +196,19 @@ export default function BrandPage() {
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-purple-600/30 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Add New Brand</span>
+              <span>Add New Vendor</span>
             </button>
           </div>
         </div>
 
-        {/* Brands Table Card */}
+        {/* Vendors Table Card */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           {loading ? (
-            <div className="p-12 text-center text-xs font-semibold text-slate-400">Loading brands...</div>
-          ) : filteredBrands.length === 0 ? (
+            <div className="p-12 text-center text-xs font-semibold text-slate-400">Loading vendors...</div>
+          ) : filteredVendors.length === 0 ? (
             <div className="p-12 text-center space-y-2">
-              <Award className="w-10 h-10 text-slate-300 mx-auto" />
-              <p className="text-sm font-bold text-slate-600">No Brands Found</p>
+              <Store className="w-10 h-10 text-slate-300 mx-auto" />
+              <p className="text-sm font-bold text-slate-600">No Vendors Found</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -230,45 +216,51 @@ export default function BrandPage() {
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
                     <th className="px-6 py-3.5">ID</th>
-                    <th className="px-6 py-3.5">Brand Image</th>
-                    <th className="px-6 py-3.5">Brand Name</th>
+                    <th className="px-6 py-3.5">Vendor Name</th>
+                    <th className="px-6 py-3.5">Contact Person</th>
+                    <th className="px-6 py-3.5">Mobile</th>
+                    <th className="px-6 py-3.5">Address</th>
                     <th className="px-6 py-3.5">Status</th>
                     <th className="px-6 py-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {filteredBrands.map((brand) => {
-                    const status = brand.brands_status || brand.status || 'Active';
-                    const isToggling = statusTogglingId === brand.id;
+                  {filteredVendors.map((vendor) => {
+                    const status = vendor.vendor_status || vendor.status || 'Active';
+                    const isToggling = statusTogglingId === vendor.id;
 
                     return (
-                      <tr key={brand.id} className="hover:bg-purple-50/30 transition-colors">
-                        <td className="px-6 py-4 font-mono font-bold text-slate-400">{brand.id}</td>
-                        <td className="px-6 py-4">
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200/80 overflow-hidden flex items-center justify-center shrink-0">
-                            <img
-                              src={
-                                brand.brands_image || brand.image
-                                  ? getImageUrl('Brands', brand.brands_image || brand.image)
-                                  : noImageUrl
-                              }
-                              alt={brand.brands_name || brand.name || 'Brand'}
-                              loading="lazy"
-                              decoding="async"
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.onerror = null;
-                                e.currentTarget.src = noImageUrl;
-                              }}
-                            />
+                      <tr key={vendor.id} className="hover:bg-purple-50/30 transition-colors">
+                        <td className="px-6 py-4 font-mono font-bold text-slate-400">{vendor.id}</td>
+                        <td className="px-6 py-4 font-bold text-slate-900">
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-lg bg-purple-50 text-purple-600 shrink-0">
+                              <Store className="w-4 h-4" />
+                            </div>
+                            <span>{vendor.vendor_name || vendor.name}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 font-bold text-slate-900">
-                          {brand.brands_name || brand.name}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1.5 text-slate-600">
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{vendor.contact_name || '—'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1.5 text-slate-600">
+                            <Phone className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{vendor.vendor_mobile || vendor.mobile || vendor.phone || '—'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-slate-500 max-w-xs truncate">
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{vendor.vendor_address || vendor.address || '—'}</span>
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <button
-                            onClick={() => handleToggleStatus(brand)}
+                            onClick={() => handleToggleStatus(vendor)}
                             disabled={isToggling}
                             title="Click to toggle status"
                             className={`px-2.5 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 w-fit cursor-pointer transition-all hover:scale-105 ${
@@ -288,9 +280,9 @@ export default function BrandPage() {
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end">
                             <button
-                              onClick={() => handleOpenEdit(brand)}
-                              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-purple-600 transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
-                              title="Edit Brand"
+                              onClick={() => handleOpenEdit(vendor)}
+                              className="p-2 hover:bg-purple-50 rounded-lg text-slate-500 hover:text-purple-600 transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                              title="Edit Vendor"
                             >
                               <Edit3 className="w-4 h-4" />
                               <span>Edit</span>
@@ -306,21 +298,21 @@ export default function BrandPage() {
           )}
         </div>
 
-        {/* Create / Edit Brand Modal */}
+        {/* Create / Edit Vendor Modal */}
         {isModalOpen ? (
           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl space-y-6 my-auto animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
-                    <Award className="w-5 h-5" />
+                    <Store className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-slate-900">
-                      {editingBrand ? 'Edit Brand' : 'Create New Brand'}
+                      {editingVendor ? 'Edit Vendor' : 'Create New Vendor'}
                     </h3>
                     <p className="text-xs text-slate-400">
-                      {editingBrand ? 'Update brand details' : 'Add a new brand to your catalog'}
+                      {editingVendor ? 'Update vendor information' : 'Add a new supplier/partner'}
                     </p>
                   </div>
                 </div>
@@ -335,13 +327,13 @@ export default function BrandPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Brand Name *
+                    Vendor Name * (vendor_name)
                   </label>
                   <input
                     type="text"
-                    value={form.brands_name}
-                    onChange={(e) => setForm({ ...form, brands_name: e.target.value })}
-                    placeholder="e.g. ArtisanCraft"
+                    value={form.vendor_name}
+                    onChange={(e) => setForm({ ...form, vendor_name: e.target.value })}
+                    placeholder="e.g. Heritage Crafts Co."
                     required
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
                   />
@@ -349,57 +341,52 @@ export default function BrandPage() {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Brand Image
+                    Contact Person (contact_name)
                   </label>
-                  <div className="space-y-3">
-                    <label className="flex items-center justify-center gap-2 py-3 px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-purple-200/80">
-                      <Upload className="w-4 h-4 text-purple-600" />
-                      <span>Upload Brand Image</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
-                    </label>
-
-                    {form.brands_image || form.image_preview ? (
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 overflow-hidden shrink-0">
-                            <img
-                              src={
-                                form.image_preview ||
-                                (form.brands_image ? getImageUrl('Brands', form.brands_image) : noImageUrl)
-                              }
-                              alt="Preview"
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.onerror = null;
-                                e.currentTarget.src = noImageUrl;
-                              }}
-                            />
-                          </div>
-                          <span className="text-xs font-medium text-emerald-600 flex items-center gap-1 truncate max-w-[160px]">
-                            <CheckCircle2 className="w-4 h-4 shrink-0" /> {form.brands_image || 'Image selected'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setForm((prev) => ({ ...prev, brands_image: '', image_file: null, image_preview: '' }))}
-                          className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline p-1 cursor-pointer"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
+                  <input
+                    type="text"
+                    value={form.contact_name}
+                    onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
+                    placeholder="e.g. Rahul Sharma"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                  />
                 </div>
 
-                {/* Status Field shown only in Edit Mode */}
-                {editingBrand ? (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Vendor Mobile (vendor_mobile)
+                  </label>
+                  <input
+                    type="text"
+                    value={form.vendor_mobile}
+                    onChange={(e) => setForm({ ...form, vendor_mobile: e.target.value })}
+                    placeholder="e.g. 9876543210"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Vendor Address (vendor_address)
+                  </label>
+                  <textarea
+                    rows="3"
+                    value={form.vendor_address}
+                    onChange={(e) => setForm({ ...form, vendor_address: e.target.value })}
+                    placeholder="e.g. 123 Artisan Road, Jaipur, Rajasthan"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 resize-none"
+                  />
+                </div>
+
+                {/* Status Field only in Edit Mode */}
+                {editingVendor ? (
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      Status
+                      Status (vendor_status)
                     </label>
                     <select
-                      value={form.brands_status}
-                      onChange={(e) => setForm({ ...form, brands_status: e.target.value })}
+                      value={form.vendor_status}
+                      onChange={(e) => setForm({ ...form, vendor_status: e.target.value })}
                       className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
                     >
                       <option value="Active">Active</option>
@@ -421,7 +408,7 @@ export default function BrandPage() {
                     disabled={submitting}
                     className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs shadow-md shadow-purple-600/30 disabled:opacity-60 cursor-pointer"
                   >
-                    {submitting ? 'Saving Brand...' : editingBrand ? 'Update Brand' : 'Save Brand'}
+                    {submitting ? 'Saving Vendor...' : editingVendor ? 'Update Vendor' : 'Save Vendor'}
                   </button>
                 </div>
               </form>

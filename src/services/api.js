@@ -1,407 +1,337 @@
-// Mock API service for Gift CRM
-// Fully offline-capable mock mode until backend endpoints are ready
+import axios from 'axios';
 
-const MOCK_DELAY = 300; // ms simulation delay
+const getBaseURL = () => {
+  const envBaseURL =
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.BASE_URL ||
+    import.meta.env.REACT_APP_API_BASE_URL ||
+    'https://memorycreators.in/crmapi/public/api';
 
-const getStoredUser = () => {
-  const saved = localStorage.getItem('gift_user');
-  if (saved) {
-    try { return JSON.parse(saved); } catch (e) {}
+  return envBaseURL.replace(/\/$/, '');
+};
+
+export const api = axios.create({
+  baseURL: getBaseURL(),
+  headers: {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  },
+});
+
+api.interceptors.request.use((config) => {
+  const token =
+    localStorage.getItem('gift_token') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('sp_cards_token');
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-  return {
-    username: 'admin',
-    name: 'Administrator',
-    email: 'admin@gift.com',
-    mobile: '+91 9876543210',
-    role: 'Super Admin',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=AdminUser&backgroundColor=ffdfbf'
-  };
+
+  const viteKey = import.meta.env.VITE_KEY;
+  const viteSecretKey = import.meta.env.VITE_SECRET_KEY;
+  if (viteKey) {
+    config.headers['x-api-key'] = viteKey;
+  }
+  if (viteSecretKey) {
+    config.headers['x-api-secret'] = viteSecretKey;
+  }
+
+  return config;
+});
+
+export const getApiConfig = () => ({
+  baseUrl: getBaseURL(),
+  viteKey: import.meta.env.VITE_KEY || '',
+  viteSecretKey: import.meta.env.VITE_SECRET_KEY || '',
+  viteSecretValidation: import.meta.env.VITE_SECRET_VALIDATION || '',
+});
+
+const KNOWN_IMAGE_FOLDERS = {
+  company: 'https://memorycreators.in/crmapi/public/assets/images/company_images/',
+  brand: 'https://memorycreators.in/crmapi/public/assets/images/brand_images/',
+  brands: 'https://memorycreators.in/crmapi/public/assets/images/brand_images/',
+  user: 'https://memorycreators.in/crmapi/public/assets/images/user_images/',
+  users: 'https://memorycreators.in/crmapi/public/assets/images/user_images/',
+  profile: 'https://memorycreators.in/crmapi/public/assets/images/user_images/',
+  product: 'https://memorycreators.in/crmapi/public/assets/images/product_images/',
+  products: 'https://memorycreators.in/crmapi/public/assets/images/product_images/',
+  category: 'https://memorycreators.in/crmapi/public/assets/images/category_images/',
+  categories: 'https://memorycreators.in/crmapi/public/assets/images/category_images/',
+  occasion: 'https://memorycreators.in/crmapi/public/assets/images/occasion_images/',
+  occasions: 'https://memorycreators.in/crmapi/public/assets/images/occasion_images/',
 };
 
-const saveStoredUser = (user) => {
-  localStorage.setItem('gift_user', JSON.stringify(user));
-};
-
+/**
+ * Image resolver helper using image_url mapping from backend
+ */
 export const resolveImageUrl = (imageFor, fileName, imageUrlList = []) => {
-  if (!fileName) return null;
-  if (typeof fileName === 'string' && (fileName.startsWith('http://') || fileName.startsWith('https://'))) {
-    return fileName;
+  const noImageItem = imageUrlList?.find(
+    (item) => item.image_for?.toLowerCase() === 'no image'
+  );
+  const fallbackNoImage =
+    noImageItem?.image_url ||
+    'https://memorycreators.in/crmapi/public/assets/images/no_image.jpg';
+
+  if (!fileName || fileName === 'null' || fileName === 'undefined' || String(fileName).trim() === '') {
+    return fallbackNoImage;
   }
-  const match = imageUrlList?.find((item) => item.image_for?.toLowerCase() === imageFor?.toLowerCase());
+
+  const cleanFile = String(fileName).trim();
+
+  if (
+    cleanFile.startsWith('http://') ||
+    cleanFile.startsWith('https://') ||
+    cleanFile.startsWith('data:') ||
+    cleanFile.startsWith('blob:')
+  ) {
+    return cleanFile;
+  }
+
+  // 1. First check dynamic image_url list from backend
+  const key = String(imageFor || '').toLowerCase();
+  const match = imageUrlList?.find(
+    (item) => item.image_for?.toLowerCase() === key
+  );
+
   if (match?.image_url) {
-    return `${match.image_url}${fileName}`;
+    const base = match.image_url.endsWith('/') ? match.image_url : `${match.image_url}/`;
+    const file = cleanFile.startsWith('/') ? cleanFile.slice(1) : cleanFile;
+    return `${base}${file}`;
   }
-  return fileName;
+
+  // 2. Check known entity image folder
+  const knownBase = KNOWN_IMAGE_FOLDERS[key];
+  if (knownBase) {
+    const file = cleanFile.startsWith('/') ? cleanFile.slice(1) : cleanFile;
+    return `${knownBase}${file}`;
+  }
+
+  // 3. If relative path starting with /assets
+  if (cleanFile.startsWith('/assets/') || cleanFile.startsWith('assets/')) {
+    return cleanFile.startsWith('/') ? cleanFile : `/${cleanFile}`;
+  }
+
+  return cleanFile;
 };
 
+/**
+ * 1. panel-check-status
+ * GET — Public endpoint (no auth). Called at app startup.
+ * URL: https://memorycreators.in/crmapi/public/api/panel-check-status
+ * Returns: { code, success, message, version: { version_panel }, company_detils: { ... }, image_url: [ ... ] }
+ */
+export const checkPanelStatus = async () => {
+  const response = await api.get('/panel-check-status');
+  return response.data;
+};
+export const checkStatus = checkPanelStatus;
+
+/**
+ * 2. panel-fetch-dotenv
+ * GET — Protected/Config endpoint.
+ * URL: https://memorycreators.in/crmapi/public/api/panel-fetch-dotenv
+ * Returns: { data: string | object }
+ */
+export const fetchPanelDotenv = async () => {
+  const response = await api.get('/panel-fetch-dotenv');
+  return response?.data?.data || response?.data;
+};
+export const fetchDotenv = fetchPanelDotenv;
+
+/**
+ * Auth APIs
+ * POST — /panel-login
+ * URL: https://memorycreators.in/crmapi/public/api/panel-login
+ * Body (FormData): username, password
+ */
 export const loginUser = async ({ username, password }) => {
   const cleanUsername = String(username || '').trim();
   const cleanPassword = String(password || '').trim();
 
   if (!cleanUsername || !cleanPassword) {
-    throw new Error('Please enter both username and password.');
+    throw new Error('Invalid username or password. Please check your credentials and try again.');
   }
+
+  const formData = new FormData();
+  formData.append('username', cleanUsername);
+  formData.append('password', cleanPassword);
 
   try {
-    const url = `${API_BASE_URL}/panel-login`;
-    const response = await fetch(url, {
-      method: 'POST',
+    const response = await api.post('/panel-login', formData, {
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'x-api-key': VITE_KEY,
-        'x-api-secret': VITE_SECRET_KEY,
+        'Content-Type': 'multipart/form-data',
       },
-      body: JSON.stringify({ username: cleanUsername, password: cleanPassword }),
     });
 
-    const data = await response.json();
+    const responseData = response?.data || {};
 
-    if (!response.ok || (data.code && data.code !== 200)) {
-      throw new Error(data.message || data.error || 'Invalid username or password.');
+    if (responseData?.code && responseData.code !== 200 && responseData.code !== 201) {
+      throw new Error(responseData?.message || 'Invalid username or password.');
     }
 
-    return data;
+    const userInfo =
+      responseData?.UserInfo || responseData?.userInfo || responseData?.data?.UserInfo;
+
+    const token =
+      userInfo?.token ||
+      responseData?.token ||
+      responseData?.access_token ||
+      responseData?.data?.token;
+
+    if (!token) {
+      throw new Error(
+        responseData?.message || 'Invalid username or password. Please check your credentials and try again.'
+      );
+    }
+
+    return responseData;
   } catch (error) {
-    console.warn('[loginUser] Network/API call notice:', error.message);
-    
-    // Grant login access for valid test credentials 9999999999 / 123456
-    if (cleanUsername === '9999999999' && cleanPassword === '123456') {
-      return {
-        code: 200,
-        success: true,
-        message: 'Login successful',
-        UserInfo: {
-          token: 'mock_jwt_token_' + Date.now(),
-          token_expires_at: new Date(Date.now() + 86400000).toISOString(),
-          user: {
-            id: 1,
-            name: 'admin',
-            email: 'admin@gmail.com',
-            mobile: '9999999999',
-            user_type: 2,
-            user_position: 'Admin'
-          }
-        }
-      };
-    }
-    
-    throw new Error(error.message || 'Invalid username or password.');
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      'Invalid username or password. Please check your credentials and try again.';
+
+    throw new Error(message);
   }
 };
+export const login = loginUser;
+export const panelLogin = loginUser;
 
+/**
+ * 4. POST panel-logout (logout)
+ * POST — Auth endpoint.
+ * URL: https://memorycreators.in/crmapi/public/api/panel-logout
+ * Headers: Authorization: Bearer <token>
+ */
 export const logoutUser = async (token) => {
   const activeToken = token || localStorage.getItem('gift_token');
-
   try {
-    const url = `${API_BASE_URL}/panel-logout`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': activeToken ? `Bearer ${activeToken}` : '',
-        'x-api-key': VITE_KEY,
-        'x-api-secret': VITE_SECRET_KEY,
-      },
-    });
-
-    const data = await response.json();
-    return data;
+    const response = await api.post(
+      '/panel-logout',
+      {},
+      {
+        headers: {
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+      }
+    );
+    return response.data;
   } catch (error) {
-    console.warn('[logoutUser] Endpoint call notice:', error.message);
-    return { success: true, message: 'Logged out successfully' };
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      'Unable to logout. Please try again.';
+
+    throw new Error(message);
   }
 };
+export const logout = logoutUser;
+export const panelLogout = logoutUser;
 
 export const sendPasswordResetEmail = async ({ username, email }) => {
-  const cleanUsername = String(username || '').trim();
-  const cleanEmail = String(email || '').trim();
-
-  if (!cleanUsername || !cleanEmail) {
-    throw new Error('Please provide both username and email.');
-  }
+  const formData = new FormData();
+  formData.append('username', String(username || '').trim());
+  formData.append('email', String(email || '').trim());
 
   try {
-    const url = `${API_BASE_URL}/panel-send-password`;
-    
-    const formData = new FormData();
-    formData.append('username', cleanUsername);
-    formData.append('email', cleanEmail);
-
-    const response = await fetch(url, {
-      method: 'POST',
+    const response = await api.post('/panel-send-password', formData, {
       headers: {
-        'Accept': 'application/json',
-        'x-api-key': VITE_KEY,
-        'x-api-secret': VITE_SECRET_KEY,
+        'Content-Type': 'multipart/form-data',
       },
-      body: formData,
     });
 
-    const data = await response.json();
-
-    if (!response.ok || (data.code && data.code !== 200)) {
-      throw new Error(data.message || data.error || 'Failed to send password reset request.');
-    }
-
-    return data;
+    return response.data;
   } catch (error) {
-    if (error.message && !error.message.toLowerCase().includes('failed to fetch')) {
-      throw error;
-    }
-    console.warn('[sendPasswordResetEmail] Network/CORS fallback notice:', error.message);
-    return {
-      code: 200,
-      success: true,
-      message: `Password recovery request processed for ${cleanEmail}.`
-    };
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      'Unable to send password reset request. Please check your details and try again.';
+
+    throw new Error(message);
   }
 };
+export const forgotPassword = sendPasswordResetEmail;
+export const panelSendPassword = sendPasswordResetEmail;
 
 export const changeUserPassword = async ({ username, old_password, new_password }) => {
-  const cleanUsername = String(username || '').trim();
-  const cleanOldPassword = String(old_password || '').trim();
-  const cleanNewPassword = String(new_password || '').trim();
-
-  if (!cleanOldPassword || !cleanNewPassword) {
-    throw new Error('Please fill out all password fields.');
-  }
-
-  if (cleanNewPassword.length < 6) {
-    throw new Error('New password must be at least 6 characters long.');
-  }
+  const formData = new FormData();
+  formData.append('username', String(username || '').trim());
+  formData.append('old_password', String(old_password || '').trim());
+  formData.append('new_password', String(new_password || '').trim());
 
   try {
-    const url = `${API_BASE_URL}/panel-change-password`;
-    
-    const formData = new FormData();
-    formData.append('username', cleanUsername);
-    formData.append('old_password', cleanOldPassword);
-    formData.append('new_password', cleanNewPassword);
-
-    const response = await fetch(url, {
-      method: 'POST',
+    const response = await api.post('/panel-change-password', formData, {
       headers: {
-        'Accept': 'application/json',
-        'x-api-key': VITE_KEY,
-        'x-api-secret': VITE_SECRET_KEY,
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || (data.code && data.code !== 200)) {
-      throw new Error(data.message || data.error || 'Failed to update password.');
-    }
-
-    return data;
-  } catch (error) {
-    if (error.message && !error.message.toLowerCase().includes('failed to fetch')) {
-      throw error;
-    }
-    console.warn('[changeUserPassword] Network/CORS fallback notice:', error.message);
-    return {
-      code: 200,
-      success: true,
-      message: 'Password updated successfully.'
-    };
-  }
-};
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://memorycreators.in/crmapi/public/api';
-const VITE_KEY = import.meta.env.VITE_KEY || 'gift_crm_key_9f8d7e6c5b4a3210';
-const VITE_SECRET_KEY = import.meta.env.VITE_SECRET_KEY || 'gift_crm_secret_a1b2c3d4e5f67890';
-
-export const getApiConfig = () => ({
-  baseUrl: API_BASE_URL,
-  viteKey: VITE_KEY,
-  viteSecretKey: VITE_SECRET_KEY,
-});
-
-export const checkPanelStatus = async () => {
-  try {
-    const url = `${API_BASE_URL}/panel-check-status`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'x-api-key': VITE_KEY,
-        'x-api-secret': VITE_SECRET_KEY,
+        'Content-Type': 'multipart/form-data',
       },
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data;
+    return response.data;
   } catch (error) {
-    console.warn('[checkPanelStatus] Endpoint call notice (using fallback structure):', error.message);
-    return {
-      code: 200,
-      success: true,
-      version: { version_panel: '2.4.0' },
-      company_detils: {
-        company_name: 'Gift CRM',
-        company_logo: 'logo.png',
-        tagline: 'Making Every Moment Special'
-      },
-      image_url: []
-    };
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      'Unable to change password. Please check your current password and try again.';
+
+    throw new Error(message);
   }
 };
+export const changePassword = changeUserPassword;
+export const panelChangePassword = changeUserPassword;
 
-export const fetchPanelDotenv = async () => {
-  try {
-    const url = `${API_BASE_URL}/panel-fetch-dotenv`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'x-api-key': VITE_KEY,
-        'x-api-secret': VITE_SECRET_KEY,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.warn('[fetchPanelDotenv] Endpoint call notice (using fallback structure):', error.message);
-    return {
-      code: 200,
-      success: true,
-      data: { appEnv: 'production', mockMode: true }
-    };
-  }
-};
-
+/**
+ * 5. GET panel-fetch-profile
+ * GET — Auth endpoint.
+ * URL: https://memorycreators.in/crmapi/public/api/panel-fetch-profile
+ * Headers: Authorization: Bearer <token>
+ */
 export const fetchProfile = async (token) => {
   const activeToken = token || localStorage.getItem('gift_token');
-
-  if (!activeToken || activeToken.startsWith('mock') || activeToken.startsWith('gift_mock')) {
-    const user = getStoredUser();
-    return {
-      code: 200,
-      success: true,
-      data: user
-    };
-  }
-
-  try {
-    const url = `${API_BASE_URL}/panel-fetch-profile`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${activeToken}`,
-        'x-api-key': VITE_KEY,
-        'x-api-secret': VITE_SECRET_KEY,
-      },
-    });
-
-    const data = await response.json();
-    if (!response.ok || response.status === 401 || (data.code && data.code !== 200)) {
-      console.warn('[fetchProfile] Endpoint notice (serving stored profile):', data.message || response.statusText);
-      const user = getStoredUser();
-      return {
-        code: 200,
-        success: true,
-        data: user
-      };
-    }
-    return data;
-  } catch (error) {
-    console.warn('[fetchProfile] Endpoint notice (serving stored profile):', error.message);
-    const user = getStoredUser();
-    return {
-      code: 200,
-      success: true,
-      data: user
-    };
-  }
+  const response = await api.get('/panel-fetch-profile', {
+    headers: {
+      ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+    },
+  });
+  return response.data;
 };
+export const fetchUserProfile = fetchProfile;
+export const panelFetchProfile = fetchProfile;
 
+/**
+ * 6. PUT panel-update-profile
+ * PUT — Auth endpoint.
+ * URL: https://memorycreators.in/crmapi/public/api/panel-update-profile
+ * Headers: Authorization: Bearer <token>, Content-Type: application/json
+ * Body (JSON): { "mobile": "", "email": "" }
+ */
 export const updateProfile = async ({ mobile, email }, token) => {
   const activeToken = token || localStorage.getItem('gift_token');
-
-  const cleanMobile = String(mobile || '').trim();
-  const cleanEmail = String(email || '').trim();
-
-  if (!activeToken || activeToken.startsWith('mock') || activeToken.startsWith('gift_mock')) {
-    const currentUser = getStoredUser();
-    const updatedUser = {
-      ...currentUser,
-      mobile: cleanMobile || currentUser.mobile,
-      email: cleanEmail || currentUser.email
-    };
-    saveStoredUser(updatedUser);
-    return {
-      code: 200,
-      success: true,
-      message: 'Profile updated successfully.',
-      data: updatedUser
-    };
-  }
+  const payload = {
+    mobile: String(mobile || '').trim(),
+    email: String(email || '').trim(),
+  };
 
   try {
-    const url = `${API_BASE_URL}/panel-update-profile`;
-    const response = await fetch(url, {
-      method: 'PUT',
+    const response = await api.put('/panel-update-profile', payload, {
       headers: {
-        'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${activeToken}`,
-        'x-api-key': VITE_KEY,
-        'x-api-secret': VITE_SECRET_KEY,
+        ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },
-      body: JSON.stringify({
-        mobile: cleanMobile,
-        email: cleanEmail
-      }),
     });
-
-    const data = await response.json();
-    if (!response.ok || response.status === 401 || (data.code && data.code !== 200)) {
-      console.warn('[updateProfile] Endpoint notice (saving locally):', data.message || response.statusText);
-      const currentUser = getStoredUser();
-      const updatedUser = {
-        ...currentUser,
-        mobile: cleanMobile || currentUser.mobile,
-        email: cleanEmail || currentUser.email
-      };
-      saveStoredUser(updatedUser);
-      return {
-        code: 200,
-        success: true,
-        message: 'Profile updated successfully.',
-        data: updatedUser
-      };
-    }
-    return data;
+    return response.data;
   } catch (error) {
-    console.warn('[updateProfile] Endpoint notice (saving locally):', error.message);
-    const currentUser = getStoredUser();
-    const updatedUser = {
-      ...currentUser,
-      mobile: cleanMobile || currentUser.mobile,
-      email: cleanEmail || currentUser.email
-    };
-    saveStoredUser(updatedUser);
-    return {
-      code: 200,
-      success: true,
-      message: 'Profile updated successfully.',
-      data: updatedUser
-    };
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      'Unable to update profile. Please try again.';
+
+    throw new Error(message);
   }
 };
+export const updateUserProfile = updateProfile;
+export const panelUpdateProfile = updateProfile;
+
+export default api;
