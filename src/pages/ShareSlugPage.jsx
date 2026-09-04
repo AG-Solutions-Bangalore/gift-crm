@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import { useAuthContext } from '../context/AuthContext';
+import { useAppContext } from '../context/AppContext';
 import { fetchProducts } from '../services/productApi';
 import {
   fetchShareSlugs,
@@ -32,6 +33,7 @@ import {
 
 export default function ShareSlugPage() {
   const { token } = useAuthContext();
+  const { getImageUrl, noImageUrl } = useAppContext();
 
   const [shareSlugs, setShareSlugs] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
@@ -58,7 +60,7 @@ export default function ShareSlugPage() {
     try {
       const [slugsRes, prodsRes] = await Promise.allSettled([
         fetchShareSlugs(token),
-        fetchProducts(token)
+        fetchProducts(token, { per_page: 500, status: 'ALL' })
       ]);
 
       // Extract slugs
@@ -271,16 +273,25 @@ export default function ShareSlugPage() {
 
   const safeSlugs = Array.isArray(shareSlugs) ? shareSlugs : [];
   const filteredSlugs = safeSlugs.filter((s) => {
-    const cName = (s.company_name || '').toLowerCase();
-    const slug = (s.share_slugs || s.slug || '').toLowerCase();
-    const mobile = (s.company_mobile || '').toLowerCase();
+    const cName = String(s.company_name || '').toLowerCase();
+    const slug = String(s.share_slugs || s.slug || '').toLowerCase();
+    const mobile = String(s.company_mobile || '').toLowerCase();
     const q = search.toLowerCase();
     return cName.includes(q) || slug.includes(q) || mobile.includes(q);
   });
 
+  const getProductBrandName = (p) => {
+    if (!p) return '';
+    if (typeof p.brand === 'string') return p.brand;
+    if (p.brand && typeof p.brand === 'object') {
+      return p.brand.brands_name || p.brand.brand_name || p.brand.name || '';
+    }
+    return p.brand_name || p.brands_name || '';
+  };
+
   const filteredProductsList = allProducts.filter((p) => {
-    const name = (p.product_name || p.productName || '').toLowerCase();
-    const brand = (p.brand?.brand_name || p.brand || '').toLowerCase();
+    const name = String(p.product_name || p.productName || p.name || '').toLowerCase();
+    const brand = getProductBrandName(p).toLowerCase();
     const q = productSearch.toLowerCase();
     return name.includes(q) || brand.includes(q);
   });
@@ -468,10 +479,10 @@ export default function ShareSlugPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      Company Name (company_name) <span className="text-rose-500">*</span>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 whitespace-nowrap">
+                      Company Name <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -484,8 +495,8 @@ export default function ShareSlugPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      Contact Mobile (company_mobile)
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 whitespace-nowrap">
+                      Contact Mobile
                     </label>
                     <input
                       type="text"
@@ -498,11 +509,11 @@ export default function ShareSlugPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Share Slug URL (share_slugs) <span className="text-rose-500">*</span>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 whitespace-nowrap">
+                    Share Slug URL <span className="text-rose-500">*</span>
                   </label>
                   <div className="flex items-center">
-                    <span className="px-3 py-2.5 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl text-xs text-slate-500 font-mono">
+                    <span className="px-3 py-2.5 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl text-xs text-slate-500 font-mono select-none">
                       /share/
                     </span>
                     <input
@@ -522,74 +533,127 @@ export default function ShareSlugPage() {
                   </div>
                 </div>
 
-                {/* Product Multi-Picker */}
-                <div className="space-y-2 pt-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 text-purple-600" />
-                      <span>Select Products for this Catalog ({form.product_ids.length})</span>
+                {/* Product Multi-Picker (Scrollable 10 items) */}
+                <div className="space-y-2.5 pt-2">
+                  <div className="flex items-center justify-between gap-3 whitespace-nowrap">
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+                      <Package className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                      <span>Select Products ({form.product_ids.length}/{allProducts.length})</span>
                     </label>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={handleSelectAllProducts}
-                        className="text-[11px] text-purple-600 hover:underline font-bold"
+                        className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98 whitespace-nowrap"
                       >
                         Select All
                       </button>
-                      <span className="text-slate-300">|</span>
                       <button
                         type="button"
                         onClick={handleClearAllProducts}
-                        className="text-[11px] text-slate-400 hover:underline"
+                        className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98 whitespace-nowrap"
                       >
-                        Clear
+                        Clear All
                       </button>
                     </div>
                   </div>
 
                   {/* Search inside products list */}
                   <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3 pointer-events-none" />
                     <input
                       type="text"
                       value={productSearch}
                       onChange={(e) => setProductSearch(e.target.value)}
                       placeholder="Search products to add..."
-                      className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                      className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 focus:bg-white transition-all"
                     />
+                    {productSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setProductSearch('')}
+                        className="absolute right-2.5 top-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
+                        title="Clear search"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
-                  <div className="p-3 bg-slate-50/70 border border-slate-200 rounded-xl max-h-48 overflow-y-auto space-y-1.5 custom-scrollbar">
+                  {/* Scrollable Products List Container (sized for ~10 products) */}
+                  <div className="p-2 bg-slate-50/80 border border-slate-200 rounded-2xl max-h-[420px] overflow-y-auto space-y-1.5 custom-scrollbar shadow-inner">
                     {filteredProductsList.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic text-center py-4">No products found</p>
+                      <div className="py-8 text-center space-y-1">
+                        <Package className="w-8 h-8 text-slate-300 mx-auto" />
+                        <p className="text-xs text-slate-500 font-medium">No products found</p>
+                        <p className="text-[10px] text-slate-400">Try changing your search query</p>
+                      </div>
                     ) : (
                       filteredProductsList.map((p) => {
                         const pId = Number(p.id || p.product_id);
                         const isSelected = form.product_ids.includes(pId);
                         const name = p.product_name || p.productName || p.name;
                         const price = p.product_sale_price ?? p.sale_price ?? p.product_mrp ?? p.price;
+                        const barcode = p.product_barcode || p.barcode;
+                        
+                        // Image resolution
+                        let rawImg = null;
+                        if (Array.isArray(p.images) && p.images.length > 0) {
+                          rawImg = p.images[0]?.product_images || p.images[0]?.image || p.images[0];
+                        } else if (p.product_images) {
+                          rawImg = Array.isArray(p.product_images) ? p.product_images[0] : p.product_images;
+                        } else if (p.image) {
+                          rawImg = p.image;
+                        }
+                        const imgUrl = rawImg ? getImageUrl('product', rawImg) : noImageUrl;
 
                         return (
                           <label
                             key={pId}
-                            className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-colors ${
+                            className={`flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer transition-all ${
                               isSelected
-                                ? 'bg-purple-100/80 text-purple-900 font-bold border border-purple-200'
-                                : 'hover:bg-white text-slate-700 bg-white/50 border border-transparent'
+                                ? 'bg-purple-100/90 text-purple-950 font-bold border border-purple-300 shadow-2xs'
+                                : 'hover:bg-white text-slate-700 bg-white/70 border border-slate-200/60 hover:border-slate-300'
                             }`}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
                               <input
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => handleToggleProduct(pId)}
-                                className="w-3.5 h-3.5 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
+                                className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500 shrink-0 cursor-pointer"
                               />
-                              <span className="line-clamp-1">{name}</span>
+                              <div className="w-9 h-9 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
+                                <img
+                                  src={imgUrl}
+                                  alt={name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.src = noImageUrl;
+                                  }}
+                                />
+                              </div>
+                              <div className="truncate">
+                                <span className="truncate block font-semibold text-slate-800 leading-tight">
+                                  {name}
+                                </span>
+                                {barcode && (
+                                  <span className="text-[10px] text-slate-400 font-mono block leading-tight">
+                                    Barcode: {barcode}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            {price && <span className="text-[11px] text-purple-700 font-bold">₹{price}</span>}
+
+                            {price !== undefined && price !== null && price !== '' && (
+                              <div className="text-right shrink-0 ml-2">
+                                <span className="text-xs text-purple-700 font-bold block">
+                                  ₹{typeof price === 'number' ? price.toFixed(2) : price}
+                                </span>
+                              </div>
+                            )}
                           </label>
                         );
                       })

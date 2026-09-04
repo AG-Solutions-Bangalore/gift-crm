@@ -5,6 +5,7 @@ import { ChevronRight } from 'lucide-react';
 const getHeaderDetails = (pathname) => {
   const routes = {
     '/': { title: 'Dashboard Overview', category: 'Main', page: 'Dashboard' },
+    '/dashboard': { title: 'Dashboard Overview', category: 'Main', page: 'Dashboard' },
     '/products': { title: 'All Products Catalog', category: 'Products', page: 'All Products' },
     '/products/add': { title: 'Add New Product', category: 'Products', page: 'Add Product' },
     '/categories': { title: 'Category Management', category: 'Catalog', page: 'Categories' },

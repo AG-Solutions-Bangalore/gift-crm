@@ -228,7 +228,17 @@ export const fetchActiveBrands = async (token) => {
     });
     return response.data;
   } catch (error) {
-    throw new Error(extractErrorMessage(error, 'Failed to fetch active brands.'));
+    try {
+      console.warn('[brandApi] /activeBrands returned error, falling back to /brand:', error.message);
+      const fallbackResponse = await api.get('/brand', {
+        headers: {
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+      });
+      return fallbackResponse.data;
+    } catch (fbErr) {
+      throw new Error(extractErrorMessage(error, 'Failed to fetch active brands.'));
+    }
   }
 };
 export const getActiveBrands = fetchActiveBrands;

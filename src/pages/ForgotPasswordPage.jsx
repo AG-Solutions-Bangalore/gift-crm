@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
     try {
       const response = await sendPasswordResetEmail({ username: cleanUsername, email: cleanEmail });
-      const msg = response?.message ;
+      const msg = response?.message;
       setMessage(msg);
       toast.success(msg);
     } catch (err) {
@@ -134,7 +134,7 @@ export default function ForgotPasswordPage() {
               <span>Sending...</span>
             ) : (
               <>
-                <span>Send Recovery Link</span>
+                <span>Send Recovery password</span>
                 <Send className="w-4 h-4" />
               </>
             )}

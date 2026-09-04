@@ -56,10 +56,16 @@ const KNOWN_IMAGE_FOLDERS = {
   profile: 'https://memorycreators.in/crmapi/public/assets/images/user_images/',
   product: 'https://memorycreators.in/crmapi/public/assets/images/product_images/',
   products: 'https://memorycreators.in/crmapi/public/assets/images/product_images/',
+  variant: 'https://memorycreators.in/crmapi/public/assets/images/product_variant_images/',
+  variants: 'https://memorycreators.in/crmapi/public/assets/images/product_variant_images/',
+  product_variant: 'https://memorycreators.in/crmapi/public/assets/images/product_variant_images/',
+  product_variants: 'https://memorycreators.in/crmapi/public/assets/images/product_variant_images/',
   category: 'https://memorycreators.in/crmapi/public/assets/images/category_images/',
   categories: 'https://memorycreators.in/crmapi/public/assets/images/category_images/',
   occasion: 'https://memorycreators.in/crmapi/public/assets/images/occasion_images/',
   occasions: 'https://memorycreators.in/crmapi/public/assets/images/occasion_images/',
+  banner: 'https://memorycreators.in/crmapi/public/assets/images/banner_images/',
+  banners: 'https://memorycreators.in/crmapi/public/assets/images/banner_images/',
 };
 
 /**
