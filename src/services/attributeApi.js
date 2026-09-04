@@ -218,9 +218,18 @@ export const fetchActiveAttributes = async (token) => {
     });
     return response.data;
   } catch (error) {
-    throw new Error(
-      extractErrorMessage(error, 'Failed to fetch active attributes.')
-    );
+    try {
+      const fallback = await api.get('/attribute', {
+        headers: {
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+      });
+      return fallback.data;
+    } catch (fbErr) {
+      throw new Error(
+        extractErrorMessage(error, 'Failed to fetch active attributes.')
+      );
+    }
   }
 };
 export const getActiveAttributes = fetchActiveAttributes;

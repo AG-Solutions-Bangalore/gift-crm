@@ -1,25 +1,25 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
+  LayoutDashboard,
   Gift,
-  Home,
   Package,
-  PlusCircle,
   Award,
   Folders,
   Calendar,
   Tag,
   SlidersHorizontal,
   Store,
-  Users,
   Share2,
   ChevronDown,
+  ChevronRight,
   Settings,
   LogOut,
-  MessageSquare,
-  BarChart3,
-  User,
-  KeyRound
+  Image as ImageIcon,
+  Mail,
+  Layers,
+  Sparkles,
+  MessageSquare
 } from 'lucide-react';
 import { useAuthContext } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
@@ -28,43 +28,33 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthContext();
-  const { companyInfo, companyLogoUrl, noImageUrl, getImageUrl } = useAppContext();
+  const { companyInfo, companyLogoUrl } = useAppContext();
 
-  const navGroups = [
-    {
-      title: 'MAIN',
-      items: [
-        { path: '/', label: 'Dashboard', icon: Home }
-      ]
-    },
-    {
-      title: 'PRODUCTS & SHARING',
-      items: [
-        { path: '/products', label: 'All Products', icon: Package },
-        { path: '/products/add', label: 'Add Product', icon: PlusCircle },
-        { path: '/share-slugs', label: 'Shareable Links', icon: Share2 }
-      ]
-    },
-    {
-      title: 'CATALOG',
-      items: [
-        { path: '/brands', label: 'Brands', icon: Award },
-        { path: '/vendors', label: 'Vendors', icon: Store },
-        { path: '/categories', label: 'Categories', icon: Folders },
-        { path: '/occasions', label: 'Occasions', icon: Calendar },
-        // { path: '/gifts-for-everyone', label: 'Gifts For Everyone', icon: Users },
-        { path: '/tags', label: 'Tags', icon: Tag },
-        { path: '/attributes', label: 'Attributes', icon: SlidersHorizontal },
-      ]
-    },
-    // {
-    //   title: 'ENQUIRIES & REPORTS',
-    //   items: [
-    //     { path: '/enquiries', label: 'Enquiries', icon: MessageSquare },
-    //     { path: '/reports/enquiry', label: 'Enquiry Reports', icon: BarChart3 }
-    //   ]
-    // },
+  const masterItems = [
+    { path: '/brands', label: 'Brand', icon: Award },
+    { path: '/vendors', label: 'Vendor', icon: Store },
+    { path: '/categories', label: 'Category', icon: Folders },
+    { path: '/occasions', label: 'Occasions', icon: Calendar },
+    { path: '/tags', label: 'Tags', icon: Tag },
+    { path: '/attributes', label: 'Attribute', icon: SlidersHorizontal },
   ];
+
+  const isMasterActive = masterItems.some((item) => location.pathname === item.path);
+  const [masterOpen, setMasterOpen] = useState(true);
+
+  useEffect(() => {
+    if (isMasterActive) {
+      setMasterOpen(true);
+    }
+  }, [location.pathname, isMasterActive]);
+
+  const isDashboardActive = location.pathname === '/' || location.pathname === '/dashboard';
+  const isProductActive = location.pathname.startsWith('/products');
+  const isBannerActive = location.pathname.startsWith('/banner') || location.pathname.startsWith('/banners');
+  const isNewsletterActive = location.pathname.startsWith('/newsletter');
+  const isShareslugActive = location.pathname.startsWith('/share-slug');
+  const isWebsiteUniqueActive = location.pathname.startsWith('/website-unique');
+  const isEnquiryActive = location.pathname.startsWith('/enquiries');
 
   return (
     <aside className="w-64 bg-[#12102e] text-slate-300 flex flex-col h-screen sticky top-0 border-r border-slate-800/60 shadow-xl select-none z-30 shrink-0">
@@ -106,35 +96,165 @@ export default function Sidebar() {
         </p>
       </div>
 
-      {/* 2. MIDDLE SCROLLABLE: NAVIGATION LISTS */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 custom-scrollbar">
-        {navGroups.map((group) => (
-          <div key={group.title} className="space-y-1.5">
-            <h2 className="px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-              {group.title}
-            </h2>
-            <nav className="space-y-1">
-              {group.items.map((item) => {
+      {/* 2. MIDDLE SCROLLABLE: ORDERED NAVIGATION LIST */}
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 custom-scrollbar">
+
+        {/* 0. DASHBOARD */}
+        <button
+          onClick={() => navigate('/')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group cursor-pointer ${
+            isDashboardActive
+              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/50 font-bold'
+              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <LayoutDashboard className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
+            isDashboardActive ? 'text-white' : 'text-slate-400 group-hover:text-purple-400'
+          }`} />
+          <span>Dashboard</span>
+        </button>
+        
+        {/* 1. MASTER (Accordion Dropdown) */}
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => setMasterOpen((prev) => !prev)}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group cursor-pointer ${
+              isMasterActive
+                ? 'bg-purple-900/30 text-purple-300 border border-purple-500/30'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Layers className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
+                isMasterActive ? 'text-purple-400' : 'text-slate-400 group-hover:text-purple-400'
+              }`} />
+              <span className="font-bold">Master</span>
+            </div>
+            <div className="flex items-center">
+              {masterOpen ? (
+                <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+              )}
+            </div>
+          </button>
+
+          {/* Master Sub-items */}
+          {masterOpen && (
+            <div className="pl-3 pr-1 py-1 space-y-1 border-l-2 border-slate-800 ml-4 animate-in slide-in-from-top-2 duration-150">
+              {masterItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
                 return (
                   <button
                     key={item.path}
                     onClick={() => navigate(item.path)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group ${isActive
-                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/50 font-semibold'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                      }`}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-xs transition-all duration-150 group cursor-pointer ${
+                      isActive
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-900/40 font-bold'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    }`}
                   >
-                    <Icon className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-purple-400'
-                      }`} />
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-purple-400'}`} />
                     <span>{item.label}</span>
                   </button>
                 );
               })}
-            </nav>
-          </div>
-        ))}
+            </div>
+          )}
+        </div>
+
+        {/* 2. PRODUCT */}
+        <button
+          onClick={() => navigate('/products')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group cursor-pointer ${
+            isProductActive
+              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/50 font-bold'
+              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <Package className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
+            isProductActive ? 'text-white' : 'text-slate-400 group-hover:text-purple-400'
+          }`} />
+          <span>Product</span>
+        </button>
+
+        {/* 3. BANNER */}
+        <button
+          onClick={() => navigate('/banners')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group cursor-pointer ${
+            isBannerActive
+              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/50 font-bold'
+              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <ImageIcon className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
+            isBannerActive ? 'text-white' : 'text-slate-400 group-hover:text-purple-400'
+          }`} />
+          <span>Banner</span>
+        </button>
+
+        {/* 4. NEWSLETTER */}
+        <button
+          onClick={() => navigate('/newsletter')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group cursor-pointer ${
+            isNewsletterActive
+              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/50 font-bold'
+              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <Mail className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
+            isNewsletterActive ? 'text-white' : 'text-slate-400 group-hover:text-purple-400'
+          }`} />
+          <span>NewsLetter</span>
+        </button>
+
+        {/* 5. SHARESLUG */}
+        <button
+          onClick={() => navigate('/share-slugs')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group cursor-pointer ${
+            isShareslugActive
+              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/50 font-bold'
+              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <Share2 className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
+            isShareslugActive ? 'text-white' : 'text-slate-400 group-hover:text-purple-400'
+          }`} />
+          <span>Shareslug</span>
+        </button>
+
+        {/* 6. WEBSITE UNIQUE */}
+        <button
+          onClick={() => navigate('/website-unique')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group cursor-pointer ${
+            isWebsiteUniqueActive
+              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/50 font-bold'
+              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <Sparkles className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
+            isWebsiteUniqueActive ? 'text-white' : 'text-slate-400 group-hover:text-purple-400'
+          }`} />
+          <span>Website Unique</span>
+        </button>
+
+        {/* 7. ENQUIRIES */}
+        <button
+          onClick={() => navigate('/enquiries')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group cursor-pointer ${
+            isEnquiryActive
+              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/50 font-bold'
+              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+          }`}
+        >
+          <MessageSquare className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
+            isEnquiryActive ? 'text-white' : 'text-slate-400 group-hover:text-purple-400'
+          }`} />
+          <span>Enquiries</span>
+        </button>
+
       </div>
 
       {/* 3. BOTTOM: ADMIN USER CARD & FOOTER */}
@@ -147,11 +267,7 @@ export default function Sidebar() {
             <div className="relative">
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-200 p-0.5 shadow-md">
                 <img
-                  src={
-                    user?.avatar && typeof user.avatar === 'string' && user.avatar !== 'null'
-                      ? getImageUrl('Users', user.avatar)
-                      : '/assets/avatars/profileimg.jpg'
-                  }
+                  src="/assets/avatars/profileimg.jpg"
                   alt="Admin Avatar"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
