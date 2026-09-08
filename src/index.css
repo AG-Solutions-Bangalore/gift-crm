@@ -22,3 +22,24 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* Auto-scrolling text marquee animation */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(calc(-50% - 1.25rem));
+  }
+}
+
+.animate-marquee-text {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee-scroll 10s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-text:hover {
+  animation-play-state: paused;
+}

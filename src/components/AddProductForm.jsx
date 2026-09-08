@@ -47,6 +47,7 @@ export default function AddProductForm({
   onSave,
   onCancel,
   isEditing = false,
+  isDuplicate = false,
   isSaving,
   hasDraft
 }) {
@@ -1175,8 +1176,8 @@ export default function AddProductForm({
                 </div>
               </div>
 
-              {/* Weight & Dimensions */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {/* Weight & Dimensions (Commented out as requested) */}
+              {/* <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Weight
@@ -1231,7 +1232,7 @@ export default function AddProductForm({
                     className="w-full px-4 py-2.5 bg-slate-50/50 text-xs font-medium text-slate-800 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 focus:bg-white transition-all"
                   />
                 </div>
-              </div>
+              </div> */}
 
               {/* Product Photos (Required for single product) */}
               <div id="section_product_photos" className="space-y-3 pt-2">
@@ -1246,7 +1247,7 @@ export default function AddProductForm({
                   </label>
                   <label className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1.5 transition-colors">
                     <Plus className="w-3.5 h-3.5" />
-                    <span>+ Upload Images</span>
+                    <span>Upload Images</span>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -1557,8 +1558,8 @@ export default function AddProductForm({
                           </div>
                         </div>
 
-                        {/* 2. WEIGHT & DIMENSIONS */}
-                        <div className="space-y-2">
+                        {/* 2. WEIGHT & DIMENSIONS (Commented out as requested) */}
+                        {/* <div className="space-y-2">
                           <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
                             WEIGHT & DIMENSIONS
                           </span>
@@ -1610,7 +1611,7 @@ export default function AddProductForm({
                               />
                             </div>
                           </div>
-                        </div>
+                        </div> */}
 
                         {/* 3. VARIANT PHOTOS */}
                         <div className="space-y-2">
@@ -1747,12 +1748,12 @@ export default function AddProductForm({
               {isSaving ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>{isEditing ? 'Updating Product...' : 'Saving Product...'}</span>
+                  <span>{isEditing ? 'Updating Product...' : isDuplicate ? 'Creating Duplicate...' : 'Saving Product...'}</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>{isEditing ? 'Update Product' : 'Create & Save Product'}</span>
+                  <span>{isEditing ? 'Update Product' : isDuplicate ? 'Create Duplicate Product' : 'Create & Save Product'}</span>
                 </>
               )}
             </button>
