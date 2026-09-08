@@ -145,9 +145,11 @@ export default function AutoMovingImage({
   let contextImageUrls = [];
   try {
     const appContext = useAppContext();
-    contextImageUrls = appContext?.imageUrls || [];
+    if (appContext?.imageUrls) {
+      contextImageUrls = appContext.imageUrls;
+    }
   } catch {
-    contextImageUrls = [];
+    // context not available
   }
 
   const effectiveImageUrlList = imageUrlList || contextImageUrls || [];
