@@ -595,6 +595,7 @@ export default function ShareSlugPage() {
                         const pId = Number(p.id || p.product_id);
                         const isSelected = form.product_ids.includes(pId);
                         const name = p.product_name || p.productName || p.name;
+                        const barcode = p.barcode || p.product_barcode || p.sku || '';
                         const price = p.product_sale_price ?? p.sale_price ?? p.product_mrp ?? p.price;
                         return (
                           <label
