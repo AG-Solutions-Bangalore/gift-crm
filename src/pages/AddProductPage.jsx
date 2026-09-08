@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import AddProductForm from '../components/AddProductForm';
 import { useAuthContext } from '../context/AuthContext';
-import { createProduct, fetchProductById, updateProduct } from '../services/productApi';
+import { createProduct, fetchProductById, updateProduct, resolveFileObject } from '../services/productApi';
 
 const DRAFT_STORAGE_KEY = 'gift_product_draft';
 
 export default function AddProductPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
-  const isEditing = Boolean(id);
+  const isDuplicate = location.pathname.includes('/duplicate') || location.pathname.includes('/clone');
+  const isEditing = Boolean(id) && !isDuplicate;
   const { token } = useAuthContext();
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
@@ -123,15 +125,18 @@ export default function AddProductPage() {
             }
 
             const rawBarcode = v.product_barcode || v.barcode || '';
-            const cleanedVBarcode = String(rawBarcode).trim().toLowerCase().startsWith('var-') ? '' : rawBarcode;
+            const cleanedVBarcode = isDuplicate ? '' : (String(rawBarcode).trim().toLowerCase().startsWith('var-') ? '' : rawBarcode);
+            const cleanedVSku = isDuplicate ? '' : (v.product_sku || v.sku || '');
 
             return {
               ...v,
-              id: v.id || v.product_variant_id || v.variant_id,
+              id: isDuplicate ? `clone_${vIdx}_${Date.now()}` : (v.id || v.product_variant_id || v.variant_id),
+              product_variant_id: isDuplicate ? undefined : v.product_variant_id,
+              variant_id: isDuplicate ? undefined : v.variant_id,
               attribute_value_id: valIds[0] || v.attribute_value_id || (v.id ? Number(v.id) : undefined),
               attribute_value_ids: valIds.length > 0 ? valIds : (v.attribute_value_id ? [Number(v.attribute_value_id)] : []),
               combo_label: comboLabel,
-              product_sku: v.product_sku || v.sku || '',
+              product_sku: cleanedVSku,
               product_barcode: cleanedVBarcode,
               product_mrp: v.product_mrp ?? v.mrp ?? v.price ?? '',
               product_sale_price: cleanZero(v.product_sale_price ?? v.sale_price ?? v.saleprice ?? v.sales_price ?? v.product_variant_sale_price),
@@ -160,7 +165,48 @@ export default function AddProductPage() {
           }
 
           const rawParentBarcode = p.product_barcode || p.barcode || '';
-          const cleanedParentBarcode = String(rawParentBarcode).trim().toLowerCase().startsWith('var-') ? '' : rawParentBarcode;
+          const cleanedParentBarcode = isDuplicate ? '' : (String(rawParentBarcode).trim().toLowerCase().startsWith('var-') ? '' : rawParentBarcode);
+
+          // If duplicating, convert existing image URLs to File objects for form state
+          if (isDuplicate) {
+            try {
+              const resolvedParent = await Promise.all(
+                parentImages.map(async (img, idx) => {
+                  const file = await resolveFileObject(img, `dup_img_${idx + 1}.jpg`, 'product');
+                  return {
+                    file,
+                    raw_file: file,
+                    preview: file ? URL.createObjectURL(file) : (typeof img === 'string' ? img : img.product_images || img.preview),
+                    name: file?.name || `dup_img_${idx + 1}.jpg`,
+                    product_images_sort_order: idx + 1
+                  };
+                })
+              );
+              parentImages = resolvedParent;
+
+              for (let i = 0; i < normalizedVariants.length; i++) {
+                const v = normalizedVariants[i];
+                if (Array.isArray(v.images) && v.images.length > 0) {
+                  const resolvedVImgs = await Promise.all(
+                    v.images.map(async (vImg, vImgIdx) => {
+                      const file = await resolveFileObject(vImg, `dup_var_${i + 1}_${vImgIdx + 1}.jpg`, 'variant');
+                      return {
+                        file,
+                        raw_file: file,
+                        preview: file ? URL.createObjectURL(file) : (typeof vImg === 'string' ? vImg : vImg.product_variant_images || vImg.preview),
+                        name: file?.name || `dup_var_${i + 1}_${vImgIdx + 1}.jpg`,
+                        product_variant_images_sort_order: vImgIdx + 1,
+                        product_variant_status: 'Active'
+                      };
+                    })
+                  );
+                  normalizedVariants[i].images = resolvedVImgs;
+                }
+              }
+            } catch (errConvert) {
+              console.warn('Image pre-conversion warning:', errConvert);
+            }
+          }
 
           setFormData({
             product_name: p.product_name || p.name || '',
@@ -188,11 +234,11 @@ export default function AddProductPage() {
       }
     };
     loadExistingProduct();
-  }, [id, token]);
+  }, [id, token, isDuplicate]);
 
-  // Check for saved draft on mount (only for new products)
+  // Check for saved draft on mount (only for new standalone products)
   useEffect(() => {
-    if (isEditing) return;
+    if (isEditing || isDuplicate) return;
     try {
       const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
       if (saved) {
@@ -204,7 +250,7 @@ export default function AddProductPage() {
     } catch (e) {
       console.warn('Could not read draft from localStorage:', e);
     }
-  }, [isEditing]);
+  }, [isEditing, isDuplicate]);
 
   const handleSaveDraft = () => {
     try {
@@ -341,7 +387,7 @@ export default function AddProductPage() {
         toast.success(res?.message || 'Product updated successfully');
       } else {
         res = await createProduct(payloadToSave, token);
-        toast.success(res?.message || 'Product created successfully');
+        toast.success(res?.message || (isDuplicate ? 'Duplicate product created successfully!' : 'Product created successfully'));
         localStorage.removeItem(DRAFT_STORAGE_KEY);
       }
       navigate('/products');
@@ -359,10 +405,23 @@ export default function AddProductPage() {
         <div className="flex items-center justify-between gap-4 bg-white px-5 py-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
           <div>
             <div className="text-[11px] font-semibold text-slate-400">
-              Products / <span className="text-purple-600">{isEditing ? `Edit Product #${id}` : 'Create New Product'}</span>
+              <button
+                type="button"
+                onClick={() => navigate('/products')}
+                className="hover:text-purple-600 cursor-pointer transition-colors bg-transparent border-none p-0 text-slate-500 font-semibold"
+                title="Back to Products"
+              >
+                Products
+              </button>{' '}
+              /{' '}
+              <span className="text-purple-600">{isEditing ? `Edit Product #${id}` : isDuplicate ? `Duplicate Product #${id}` : 'Create New Product'}</span>
             </div>
             <h1 className="text-lg font-black text-slate-900 leading-tight">
-              {isEditing ? (formData.product_name ? `Edit: ${formData.product_name}` : `Edit Product #${id}`) : 'Add New Product'}
+              {isEditing 
+                ? (formData.product_name ? `Edit: ${formData.product_name}` : `Edit Product #${id}`) 
+                : isDuplicate 
+                ? (formData.product_name ? `Duplicate: ${formData.product_name}` : `Duplicate Product #${id}`) 
+                : 'Add New Product'}
             </h1>
           </div>
 
@@ -376,7 +435,7 @@ export default function AddProductPage() {
           </button>
         </div>
 
-        {hasDraft && (
+        {hasDraft && !isDuplicate && (
           <div className="flex items-center justify-between px-4 py-2.5 bg-purple-50/80 border border-purple-200/90 rounded-2xl text-xs text-purple-900 font-medium shadow-2xs animate-in fade-in">
             <span className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
@@ -411,6 +470,7 @@ export default function AddProductPage() {
           onSave={handleSaveProduct}
           onCancel={() => navigate('/products')}
           isEditing={isEditing}
+          isDuplicate={isDuplicate}
           isSaving={isSaving}
           hasDraft={hasDraft}
         />

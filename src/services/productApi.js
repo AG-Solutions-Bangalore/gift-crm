@@ -1,4 +1,4 @@
-import api from './api';
+import api, { resolveImageUrl } from './api';
 
 const extractErrorMessage = (error, defaultMsg = 'An error occurred. Please try again.') => {
   if (error?.response?.data?.errors) {
@@ -13,7 +13,7 @@ const extractErrorMessage = (error, defaultMsg = 'An error occurred. Please try 
   );
 };
 
-const dataURLtoFile = (dataurl, filename = 'product_image.jpg') => {
+export const dataURLtoFile = (dataurl, filename = 'product_image.jpg') => {
   if (!dataurl || typeof dataurl !== 'string') return dataurl;
   if (!dataurl.startsWith('data:')) return dataurl;
   try {
@@ -30,6 +30,77 @@ const dataURLtoFile = (dataurl, filename = 'product_image.jpg') => {
   } catch (e) {
     console.warn('[productApi] dataURLtoFile conversion fallback:', e);
     return dataurl;
+  }
+};
+
+/**
+ * Converts any image format (File, Data URL, Blob URL, or server path string) into a real File instance
+ */
+export const resolveFileObject = async (img, defaultFilename = 'product_image.jpg', imageType = 'product') => {
+  if (!img) return null;
+  if (img instanceof File) return img;
+
+  const directFile = img.file || img.raw_file;
+  if (directFile instanceof File) return directFile;
+
+  const raw = typeof img === 'string'
+    ? img
+    : (img.product_images || img.product_variant_images || img.preview || img.image || img.url || '');
+
+  if (!raw || typeof raw !== 'string') return null;
+
+  if (raw.startsWith('data:')) {
+    return dataURLtoFile(raw, img.name || defaultFilename);
+  }
+
+  if (raw.startsWith('blob:')) {
+    try {
+      const res = await fetch(raw);
+      const blob = await res.blob();
+      return new File([blob], img.name || defaultFilename, { type: blob.type || 'image/jpeg' });
+    } catch (e) {
+      console.warn('[productApi] failed to fetch blob url:', e);
+    }
+  }
+
+  const fullUrl = resolveImageUrl(imageType, raw);
+  if (!fullUrl || fullUrl.includes('no_image')) return null;
+
+  try {
+    const res = await fetch(fullUrl, { mode: 'cors' });
+    if (!res.ok) throw new Error(`HTTP status ${res.status}`);
+    const blob = await res.blob();
+    const mimeType = blob.type && blob.type.startsWith('image/') ? blob.type : 'image/jpeg';
+    const cleanFilename = img.name || raw.split('/').pop() || defaultFilename;
+    return new File([blob], cleanFilename, { type: mimeType });
+  } catch (err) {
+    console.warn('[productApi] fetch failed, attempting canvas conversion for:', fullUrl, err);
+    return new Promise((resolve) => {
+      const imageEl = new Image();
+      imageEl.crossOrigin = 'anonymous';
+      imageEl.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = imageEl.naturalWidth || imageEl.width || 400;
+          canvas.height = imageEl.naturalHeight || imageEl.height || 400;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(imageEl, 0, 0);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const cleanFilename = img.name || raw.split('/').pop() || defaultFilename;
+              resolve(new File([blob], cleanFilename, { type: 'image/jpeg' }));
+            } else {
+              resolve(null);
+            }
+          }, 'image/jpeg', 0.95);
+        } catch (canvasErr) {
+          console.warn('[productApi] canvas toBlob error:', canvasErr);
+          resolve(null);
+        }
+      };
+      imageEl.onerror = () => resolve(null);
+      imageEl.src = fullUrl;
+    });
   }
 };
 
@@ -114,18 +185,21 @@ export const createProduct = async (productData, token) => {
 
   // Top-level Images (Single Product or fallback from first variant)
   const effectiveImages = rawImages.length > 0 ? rawImages : (firstVariant && Array.isArray(firstVariant.images) ? firstVariant.images : []);
-  effectiveImages.forEach((img, idx) => {
-    const rawFile = img.file || img.raw_file || img.product_images || img.product_variant_images;
-    const fileObj = rawFile instanceof File ? rawFile : dataURLtoFile(img.product_images || img.product_variant_images || img.preview || rawFile, img.name || `image_${idx + 1}.jpg`);
+  let attachedImgCount = 0;
+  for (let idx = 0; idx < effectiveImages.length; idx++) {
+    const img = effectiveImages[idx];
+    const fileObj = await resolveFileObject(img, img?.name || `product_img_${idx + 1}.jpg`, 'product');
     if (fileObj instanceof File) {
-      formData.append(`images[${idx}][product_images]`, fileObj);
+      formData.append(`images[${attachedImgCount}][product_images]`, fileObj);
+      formData.append(`images[${attachedImgCount}][product_images_sort_order]`, String(img?.product_images_sort_order ?? img?.product_variant_images_sort_order ?? attachedImgCount + 1));
+      attachedImgCount++;
     }
-    formData.append(`images[${idx}][product_images_sort_order]`, String(img.product_images_sort_order ?? img.product_variant_images_sort_order ?? idx + 1));
-  });
+  }
 
   // Variants array - only appended when in Multi-Variant mode (has_variants = 1)
   if (isVariantMode && Array.isArray(productData.variants) && productData.variants.length > 0) {
-    productData.variants.forEach((v, vIdx) => {
+    for (let vIdx = 0; vIdx < productData.variants.length; vIdx++) {
+      const v = productData.variants[vIdx];
       const vBarcode = v.product_barcode ? String(v.product_barcode).trim() : '';
       const vMrp = v.product_mrp !== '' && v.product_mrp !== undefined && v.product_mrp !== null ? v.product_mrp : (productData.product_mrp ?? 0);
       const vSalePrice = v.product_sale_price !== '' && v.product_sale_price !== undefined && v.product_sale_price !== null ? v.product_sale_price : (productData.product_sale_price ?? '');
@@ -160,16 +234,18 @@ export const createProduct = async (productData, token) => {
       }
 
       const variantImages = Array.isArray(v.images) && v.images.length > 0 ? v.images : rawImages;
-      variantImages.forEach((vImg, viIdx) => {
-        const vRawFile = vImg.file || vImg.raw_file || vImg.product_variant_images || vImg.product_images;
-        const vFileObj = vRawFile instanceof File ? vRawFile : dataURLtoFile(vImg.product_variant_images || vImg.product_images || vImg.preview || vRawFile, vImg.name || `var_${vIdx}_${viIdx + 1}.jpg`);
+      let attachedVImgCount = 0;
+      for (let viIdx = 0; viIdx < variantImages.length; viIdx++) {
+        const vImg = variantImages[viIdx];
+        const vFileObj = await resolveFileObject(vImg, vImg?.name || `var_${vIdx + 1}_${viIdx + 1}.jpg`, 'variant');
         if (vFileObj instanceof File) {
-          formData.append(`variants[${vIdx}][images][${viIdx}][product_variant_images]`, vFileObj);
+          formData.append(`variants[${vIdx}][images][${attachedVImgCount}][product_variant_images]`, vFileObj);
+          formData.append(`variants[${vIdx}][images][${attachedVImgCount}][product_variant_images_sort_order]`, String(vImg?.product_variant_images_sort_order ?? vImg?.product_images_sort_order ?? attachedVImgCount + 1));
+          formData.append(`variants[${vIdx}][images][${attachedVImgCount}][product_variant_status]`, String(vImg?.product_variant_status || vStatus || 'Active'));
+          attachedVImgCount++;
         }
-        formData.append(`variants[${vIdx}][images][${viIdx}][product_variant_images_sort_order]`, String(vImg.product_variant_images_sort_order ?? vImg.product_images_sort_order ?? viIdx + 1));
-        formData.append(`variants[${vIdx}][images][${viIdx}][product_variant_status]`, String(vImg.product_variant_status || vStatus || 'Active'));
-      });
-    });
+      }
+    }
   }
 
   // Console log payload entries
@@ -212,7 +288,18 @@ export const createProduct = async (productData, token) => {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },
     });
-    return response.data;
+    const resData = response?.data;
+    if (
+      resData &&
+      (resData.status === false ||
+        resData.status === 0 ||
+        resData.status === 'false' ||
+        resData.success === false ||
+        (typeof resData.message === 'string' && resData.message.toLowerCase().includes('already exist')))
+    ) {
+      throw new Error(resData.message || 'This product or barcode already exists in the catalog.');
+    }
+    return resData;
   } catch (error) {
     throw new Error(
       extractErrorMessage(error, 'Unable to create product. Please check the fields and try again.')
@@ -730,8 +817,59 @@ export const importProduct = async (file, token) => {
     );
   }
 };
+
 export const importProducts = importProduct;
 export const importProductsFile = importProduct;
+
+/**
+ * 8. POST /importProductImages (Bulk Import Product / Variant Images)
+ * URL: https://memorycreators.in/crmapi/public/api/importProductImages
+ * Headers: Authorization: Bearer <token>, Content-Type: multipart/form-data
+ * Body: FormData with:
+ *   - type: 'product' | 'variant'
+ *   - images[]: image files
+ */
+export const importProductImages = async (type = 'product', imageFiles = [], token) => {
+  const activeToken = token || localStorage.getItem('gift_token');
+  const formData = new FormData();
+  formData.append('type', String(type).toLowerCase());
+
+  const filesArray = Array.isArray(imageFiles) ? imageFiles : [imageFiles];
+  filesArray.forEach((file) => {
+    if (file instanceof File) {
+      formData.append('images[]', file);
+    }
+  });
+
+  const endpoints = ['/importProductImages', '/import-product-images', '/import_product_images'];
+  let lastError = null;
+
+  for (const ep of endpoints) {
+    try {
+      const response = await api.post(ep, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+      });
+
+      const resData = response.data;
+      if (resData && (resData.status === false || resData.success === false)) {
+        throw new Error(resData.message || resData.error || 'Failed to import product images.');
+      }
+      return resData;
+    } catch (err) {
+      lastError = err;
+      if (!err.message?.includes('404')) {
+        break;
+      }
+    }
+  }
+
+  throw new Error(
+    extractErrorMessage(lastError, 'Failed to import product images. Please check your files and try again.')
+  );
+};
 
 export default {
   createProduct,
@@ -745,5 +883,6 @@ export default {
   importProduct,
   importProducts,
   importProductsFile,
+  importProductImages,
 };
 

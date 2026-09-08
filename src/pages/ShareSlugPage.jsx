@@ -20,6 +20,7 @@ import {
   Link as LinkIcon
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import AutoMovingImage from '../components/common/AutoMovingImage';
 import { useAuthContext } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import { fetchProducts } from '../services/productApi';
@@ -595,19 +596,6 @@ export default function ShareSlugPage() {
                         const isSelected = form.product_ids.includes(pId);
                         const name = p.product_name || p.productName || p.name;
                         const price = p.product_sale_price ?? p.sale_price ?? p.product_mrp ?? p.price;
-                        const barcode = p.product_barcode || p.barcode;
-                        
-                        // Image resolution
-                        let rawImg = null;
-                        if (Array.isArray(p.images) && p.images.length > 0) {
-                          rawImg = p.images[0]?.product_images || p.images[0]?.image || p.images[0];
-                        } else if (p.product_images) {
-                          rawImg = Array.isArray(p.product_images) ? p.product_images[0] : p.product_images;
-                        } else if (p.image) {
-                          rawImg = p.image;
-                        }
-                        const imgUrl = rawImg ? getImageUrl('product', rawImg) : noImageUrl;
-
                         return (
                           <label
                             key={pId}
@@ -624,15 +612,13 @@ export default function ShareSlugPage() {
                                 onChange={() => handleToggleProduct(pId)}
                                 className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500 shrink-0 cursor-pointer"
                               />
-                              <div className="w-9 h-9 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
-                                <img
-                                  src={imgUrl}
+                              <div className="w-9 h-9 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center relative">
+                                <AutoMovingImage
+                                  product={p}
                                   alt={name}
                                   className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.onerror = null;
-                                    e.currentTarget.src = noImageUrl;
-                                  }}
+                                  fallbackSrc={noImageUrl}
+                                  interval={2600}
                                 />
                               </div>
                               <div className="truncate">

@@ -40,12 +40,10 @@ export default function Sidebar() {
   ];
 
   const isMasterActive = masterItems.some((item) => location.pathname === item.path);
-  const [masterOpen, setMasterOpen] = useState(true);
+  const [masterOpen, setMasterOpen] = useState(isMasterActive);
 
   useEffect(() => {
-    if (isMasterActive) {
-      setMasterOpen(true);
-    }
+    setMasterOpen(isMasterActive);
   }, [location.pathname, isMasterActive]);
 
   const isDashboardActive = location.pathname === '/' || location.pathname === '/dashboard';

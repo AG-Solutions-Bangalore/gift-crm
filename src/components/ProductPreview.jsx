@@ -9,6 +9,7 @@ import {
   ImagePlus, 
   Layers
 } from 'lucide-react';
+import AutoMovingImage from './common/AutoMovingImage';
 
 export default function ProductPreview({ formData }) {
   const name = formData.product_name || formData.productName;
@@ -16,12 +17,9 @@ export default function ProductPreview({ formData }) {
   const salePrice = formData.product_sale_price ?? formData.salePrice;
   const hasVariants = Number(formData.has_variants) === 1;
 
-  const firstImage =
-    Array.isArray(formData.images) && formData.images.length > 0
-      ? typeof formData.images[0] === 'string'
-        ? formData.images[0]
-        : formData.images[0].product_images || formData.images[0].preview || formData.images[0].url
-      : null;
+  const hasAnyImages = (formData.images && formData.images.length > 0) || 
+                       (formData.product_images && (Array.isArray(formData.product_images) ? formData.product_images.length > 0 : Boolean(formData.product_images))) ||
+                       (formData.variants && formData.variants.some(v => (v.images && v.images.length > 0) || v.product_variant_images));
 
   const previewItems = [
     { label: 'Product Name', value: name, icon: Package },
@@ -79,11 +77,14 @@ export default function ProductPreview({ formData }) {
 
       {/* Image Preview Canvas */}
       <div className="relative aspect-4/3 rounded-2xl bg-gradient-to-br from-slate-100 via-purple-50/50 to-indigo-50/40 border border-slate-200/70 flex items-center justify-center overflow-hidden mb-6 group">
-        {firstImage ? (
-          <img
-            src={firstImage}
-            alt="Preview"
+        {hasAnyImages ? (
+          <AutoMovingImage
+            product={formData}
+            alt={name || 'Preview'}
             className="w-full h-full object-cover rounded-2xl"
+            showDots={true}
+            showCounter={true}
+            interval={2200}
           />
         ) : (
           <div className="flex flex-col items-center justify-center text-slate-300">
@@ -92,7 +93,7 @@ export default function ProductPreview({ formData }) {
           </div>
         )}
 
-        <div className="absolute bottom-3 right-3 w-8 h-8 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-md border border-purple-100">
+        <div className="absolute bottom-3 right-3 w-8 h-8 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-md border border-purple-100 z-10 pointer-events-none">
           <ImagePlus className="w-4 h-4" />
         </div>
       </div>
