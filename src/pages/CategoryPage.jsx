@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { Folders, Plus, Search, Edit3, X, CheckCircle2, XCircle, Upload, Filter, CornerDownRight, Layers, Sparkles } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import Pagination from '../components/common/Pagination';
 import { useAuthContext } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import {
@@ -23,6 +24,11 @@ export default function CategoryPage() {
   const [statusTogglingId, setStatusTogglingId] = useState(null);
   const [search, setSearch] = useState('');
   const [activeOnly, setActiveOnly] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState(null);
 
@@ -271,13 +277,21 @@ export default function CategoryPage() {
     }
   };
 
-  const filteredCategories = safeCategories.filter((c) => {
-    const term = search.toLowerCase();
-    return (
-      (c.categories_name || c.name || '').toLowerCase().includes(term) ||
-      (c.categories_slug || c.slug || '').toLowerCase().includes(term)
-    );
-  });
+  const filteredCategories = safeCategories
+    .filter((c) => {
+      const term = search.toLowerCase();
+      return (
+        (c.categories_name || c.name || '').toLowerCase().includes(term) ||
+        (c.categories_slug || c.slug || '').toLowerCase().includes(term)
+      );
+    })
+    .sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (filteredCategories.length || 1) : Number(pageSize) || 20;
+  const paginatedCategories = filteredCategories.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
+  );
 
   const getParentCategoryName = (parentId) => {
     if (!parentId || String(parentId) === 'null') return 'Top-Level (Main)';
@@ -349,7 +363,7 @@ export default function CategoryPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {filteredCategories.map((cat) => {
+                  {paginatedCategories.map((cat) => {
                     const status = cat.categories_status || cat.status || 'Active';
                     const isToggling = statusTogglingId === cat.id;
                     const isSub = Boolean(cat.parent_id && String(cat.parent_id) !== 'null');
@@ -451,6 +465,17 @@ export default function CategoryPage() {
                 </tbody>
               </table>
             </div>
+          )}
+          {!loading && filteredCategories.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredCategories.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="categories"
+              pageSizeOptions={[10, 20, 50, 100, 'All']}
+            />
           )}
         </div>
 

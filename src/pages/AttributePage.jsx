@@ -15,6 +15,7 @@ import {
   Trash2
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import Pagination from '../components/common/Pagination';
 import { useAuthContext } from '../context/AuthContext';
 import {
   fetchAttributes,
@@ -36,6 +37,10 @@ export default function AttributePage() {
   const [activeOnly, setActiveOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Form State
   const [form, setForm] = useState({
@@ -310,13 +315,23 @@ export default function AttributePage() {
   };
 
   const safeAttributes = Array.isArray(attributes) ? attributes : [];
-  const filteredAttributes = safeAttributes.filter((attr) => {
-    const name = (attr.attribute_name || attr.name || '').toLowerCase();
-    const valuesList = extractAttributeValues(attr);
-    const valuesStr = valuesList.map((v) => v.attribute_value).join(' ').toLowerCase();
-    const q = search.toLowerCase();
-    return name.includes(q) || valuesStr.includes(q);
-  });
+  const filteredAttributes = safeAttributes
+    .filter((attr) => {
+      const term = search.toLowerCase();
+      const nameMatch = (attr.attribute_name || attr.name || '').toLowerCase().includes(term);
+      const values = extractAttributeValues(attr);
+      const valuesMatch = values.some((v) =>
+        (v.attribute_value || '').toLowerCase().includes(term)
+      );
+      return nameMatch || valuesMatch;
+    })
+    .sort((a, b) => Number(a.id || a.attribute_id || 0) - Number(b.id || b.attribute_id || 0));
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (filteredAttributes.length || 1) : Number(pageSize) || 20;
+  const paginatedAttributes = filteredAttributes.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
+  );
 
   return (
     <MainLayout>
@@ -385,7 +400,7 @@ export default function AttributePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {filteredAttributes.map((attr) => {
+                  {paginatedAttributes.map((attr) => {
                     const attrId = attr.id || attr.attribute_id;
                     const name = attr.attribute_name || attr.name || '-';
                     const valuesList = extractAttributeValues(attr);
@@ -466,6 +481,17 @@ export default function AttributePage() {
                 </tbody>
               </table>
             </div>
+          )}
+          {!loading && filteredAttributes.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredAttributes.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="attributes"
+              pageSizeOptions={[10, 20, 50, 100, 'All']}
+            />
           )}
         </div>
 

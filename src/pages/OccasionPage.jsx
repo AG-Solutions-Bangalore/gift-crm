@@ -14,6 +14,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import Pagination from '../components/common/Pagination';
 import { useAuthContext } from '../context/AuthContext';
 import {
   fetchOccasions,
@@ -36,6 +37,10 @@ export default function OccasionPage() {
   const [activeOnly, setActiveOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Form State matching backend requirements
   const [form, setForm] = useState({
@@ -181,12 +186,21 @@ export default function OccasionPage() {
   };
 
   const safeOccasions = Array.isArray(occasions) ? occasions : [];
-  const filteredOccasions = safeOccasions.filter((occ) => {
-    const name = (occ.occasions_name || occ.name || '').toLowerCase();
-    const slug = (occ.occasions_slug || occ.slug || '').toLowerCase();
-    const q = search.toLowerCase();
-    return name.includes(q) || slug.includes(q);
-  });
+  const filteredOccasions = safeOccasions
+    .filter((occ) => {
+      const term = search.toLowerCase();
+      return (
+        (occ.occasions_name || occ.name || '').toLowerCase().includes(term) ||
+        (occ.occasions_slug || occ.slug || '').toLowerCase().includes(term)
+      );
+    })
+    .sort((a, b) => Number(a.id || a.occasions_id || 0) - Number(b.id || b.occasions_id || 0));
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (filteredOccasions.length || 1) : Number(pageSize) || 20;
+  const paginatedOccasions = filteredOccasions.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
+  );
 
   return (
     <MainLayout>
@@ -253,7 +267,7 @@ export default function OccasionPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {filteredOccasions.map((occ) => {
+                  {paginatedOccasions.map((occ) => {
                     const occId = occ.id || occ.occasions_id;
                     const name = occ.occasions_name || occ.name || '-';
                     const slug = occ.occasions_slug || occ.slug || '-';
@@ -316,6 +330,17 @@ export default function OccasionPage() {
                 </tbody>
               </table>
             </div>
+          )}
+          {!loading && filteredOccasions.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredOccasions.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="occasions"
+              pageSizeOptions={[10, 20, 50, 100, 'All']}
+            />
           )}
         </div>
 

@@ -322,6 +322,12 @@ export default function AddProductPage() {
       focusElement('section_categories');
       return;
     }
+    if (!formData.vendor_ids || formData.vendor_ids.length === 0) {
+      toast.error('At least one Vendor is required (Tab 2: Categorization)');
+      setActiveTab('categorization');
+      focusElement('section_vendors');
+      return;
+    }
 
     // Tab 3 Validations
     if (Number(formData.has_variants) === 1) {

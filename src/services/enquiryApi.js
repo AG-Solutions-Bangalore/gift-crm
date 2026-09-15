@@ -18,10 +18,11 @@ const extractErrorMessage = (error, defaultMsg = 'An error occurred. Please try 
  * URL: https://memorycreators.in/crmapi/public/api/enquiry
  * Headers: Authorization: Bearer <token>
  */
-export const fetchEnquiries = async (token) => {
+export const fetchEnquiries = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/enquiry', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },

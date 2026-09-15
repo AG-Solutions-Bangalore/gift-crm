@@ -9,6 +9,7 @@ import {
   ChevronDown 
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import Pagination from '../components/common/Pagination';
 import { useAuthContext } from '../context/AuthContext';
 import { fetchNewsletters, updateNewsletterStatus } from '../services/newsletterApi';
 
@@ -18,6 +19,10 @@ export default function NewsletterPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const loadSubscribers = async () => {
     setLoading(true);
@@ -91,6 +96,12 @@ export default function NewsletterPage() {
     const st = String(s.newsletter_status || s.status || 'Active').toLowerCase();
     return matchesSearch && st === statusFilter.toLowerCase();
   });
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (filteredSubscribers.length || 1) : Number(pageSize) || 20;
+  const paginatedSubscribers = filteredSubscribers.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
+  );
 
   return (
     <MainLayout>
@@ -184,7 +195,7 @@ export default function NewsletterPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                  {filteredSubscribers.map((sub) => {
+                  {paginatedSubscribers.map((sub) => {
                     const subId = sub.id || sub.newsletter_id;
                     const email = sub.email || sub.newsletter_email || '—';
                     const date = sub.created_at || sub.subscribed_at || '—';
@@ -234,6 +245,17 @@ export default function NewsletterPage() {
                 </tbody>
               </table>
             </div>
+          )}
+          {!loading && filteredSubscribers.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredSubscribers.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="subscribers"
+              pageSizeOptions={[10, 20, 50, 100, 'All']}
+            />
           )}
         </div>
       </div>

@@ -70,10 +70,11 @@ export const createBanner = async (bannerData, token) => {
  * 2. GET - Fetch Banner List
  * Endpoint: /banner
  */
-export const fetchBanners = async (token) => {
+export const fetchBanners = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/banner', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },

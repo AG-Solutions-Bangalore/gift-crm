@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart3, Download, TrendingUp, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import Pagination from '../components/common/Pagination';
 import { fetchEnquiryReport } from '../services/enquiryApi';
 
 export default function EnquiryReportPage() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     (async () => {
@@ -19,6 +24,13 @@ export default function EnquiryReportPage() {
       }
     })();
   }, []);
+
+  const reportData = Array.isArray(report?.data) ? report.data : [];
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (reportData.length || 1) : Number(pageSize) || 10;
+  const paginatedData = reportData.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
+  );
 
   return (
     <MainLayout>
@@ -74,7 +86,7 @@ export default function EnquiryReportPage() {
           <h3 className="text-base font-bold text-slate-900">Comprehensive Enquiry Log</h3>
           {loading ? (
             <div className="p-8 text-center text-xs font-semibold text-slate-400">Generating report...</div>
-          ) : !report?.data || report.data.length === 0 ? (
+          ) : reportData.length === 0 ? (
             <div className="p-8 text-center text-xs font-semibold text-slate-400 space-y-1">
               <BarChart3 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
               <p className="text-sm font-bold text-slate-600">No Enquiry Records Available</p>
@@ -94,7 +106,7 @@ export default function EnquiryReportPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {report?.data?.map((item) => (
+                  {paginatedData.map((item) => (
                     <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
                       <td className="px-6 py-4 font-mono font-bold text-purple-600">{item.id}</td>
                       <td className="px-6 py-4 font-bold text-slate-900">{item.customerName}</td>
@@ -115,6 +127,17 @@ export default function EnquiryReportPage() {
                 </tbody>
               </table>
             </div>
+          )}
+          {!loading && reportData.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={reportData.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="records"
+              pageSizeOptions={[5, 10, 25, 50, 'All']}
+            />
           )}
         </div>
       </div>

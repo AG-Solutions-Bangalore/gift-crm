@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import AutoMovingImage from '../components/common/AutoMovingImage';
+import Pagination from '../components/common/Pagination';
 import { useAuthContext } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import { fetchProducts } from '../services/productApi';
@@ -46,6 +47,14 @@ export default function ShareSlugPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
 
+  // Pagination state for share slugs table
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  // Pagination state for product selector inside modal (700-800+ products)
+  const [modalProductPage, setModalProductPage] = useState(1);
+  const [modalProductPageSize, setModalProductPageSize] = useState(20);
+
   // Form State
   const [form, setForm] = useState({
     company_name: '',
@@ -61,7 +70,7 @@ export default function ShareSlugPage() {
     try {
       const [slugsRes, prodsRes] = await Promise.allSettled([
         fetchShareSlugs(token),
-        fetchProducts(token, { per_page: 500, status: 'ALL' })
+        fetchProducts(token, { per_page: 2000, status: 'ALL' })
       ]);
 
       // Extract slugs
@@ -272,15 +281,6 @@ export default function ShareSlugPage() {
     window.open(waUrl, '_blank');
   };
 
-  const safeSlugs = Array.isArray(shareSlugs) ? shareSlugs : [];
-  const filteredSlugs = safeSlugs.filter((s) => {
-    const cName = String(s.company_name || '').toLowerCase();
-    const slug = String(s.share_slugs || s.slug || '').toLowerCase();
-    const mobile = String(s.company_mobile || '').toLowerCase();
-    const q = search.toLowerCase();
-    return cName.includes(q) || slug.includes(q) || mobile.includes(q);
-  });
-
   const getProductBrandName = (p) => {
     if (!p) return '';
     if (typeof p.brand === 'string') return p.brand;
@@ -290,12 +290,38 @@ export default function ShareSlugPage() {
     return p.brand_name || p.brands_name || '';
   };
 
-  const filteredProductsList = allProducts.filter((p) => {
-    const name = String(p.product_name || p.productName || p.name || '').toLowerCase();
-    const brand = getProductBrandName(p).toLowerCase();
-    const q = productSearch.toLowerCase();
-    return name.includes(q) || brand.includes(q);
-  });
+  const safeSlugs = Array.isArray(shareSlugs) ? shareSlugs : [];
+  const filteredSlugs = safeSlugs
+    .filter((s) => {
+      const cName = String(s.company_name || '').toLowerCase();
+      const slug = String(s.share_slugs || s.slug || '').toLowerCase();
+      const mobile = String(s.company_mobile || '').toLowerCase();
+      const q = search.toLowerCase();
+      return cName.includes(q) || slug.includes(q) || mobile.includes(q);
+    })
+    .sort((a, b) => Number(a.id || a.share_slug_id || 0) - Number(b.id || b.share_slug_id || 0));
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (filteredSlugs.length || 1) : Number(pageSize) || 20;
+  const paginatedSlugs = filteredSlugs.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
+  );
+
+  const filteredProductsList = allProducts
+    .filter((p) => {
+      const name = String(p.product_name || p.productName || p.name || '').toLowerCase();
+      const brand = getProductBrandName(p).toLowerCase();
+      const barcode = String(p.barcode || p.product_barcode || p.sku || '').toLowerCase();
+      const q = productSearch.toLowerCase();
+      return name.includes(q) || brand.includes(q) || barcode.includes(q);
+    })
+    .sort((a, b) => Number(a.id || a.product_id || 0) - Number(b.id || b.product_id || 0));
+
+  const modalNumericSize = modalProductPageSize === 'all' || modalProductPageSize === 'All' ? (filteredProductsList.length || 1) : Number(modalProductPageSize) || 20;
+  const paginatedModalProducts = filteredProductsList.slice(
+    (modalProductPage - 1) * modalNumericSize,
+    (modalProductPage - 1) * modalNumericSize + modalNumericSize
+  );
 
   return (
     <MainLayout>
@@ -353,7 +379,7 @@ export default function ShareSlugPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {filteredSlugs.map((slugItem) => {
+                  {paginatedSlugs.map((slugItem) => {
                     const sId = slugItem.id || slugItem.share_slug_id;
                     const cName = slugItem.company_name || 'Client';
                     const cMobile = slugItem.company_mobile || '—';
@@ -455,6 +481,17 @@ export default function ShareSlugPage() {
                 </tbody>
               </table>
             </div>
+          )}
+          {!loading && filteredSlugs.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredSlugs.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="share links"
+              pageSizeOptions={[10, 20, 50, 100, 'All']}
+            />
           )}
         </div>
 
@@ -582,16 +619,16 @@ export default function ShareSlugPage() {
                     )}
                   </div>
 
-                  {/* Scrollable Products List Container (sized for ~10 products) */}
+                  {/* Scrollable Products List Container */}
                   <div className="p-2 bg-slate-50/80 border border-slate-200 rounded-2xl max-h-[420px] overflow-y-auto space-y-1.5 custom-scrollbar shadow-inner">
-                    {filteredProductsList.length === 0 ? (
+                    {paginatedModalProducts.length === 0 ? (
                       <div className="py-8 text-center space-y-1">
                         <Package className="w-8 h-8 text-slate-300 mx-auto" />
                         <p className="text-xs text-slate-500 font-medium">No products found</p>
                         <p className="text-[10px] text-slate-400">Try changing your search query</p>
                       </div>
                     ) : (
-                      filteredProductsList.map((p) => {
+                      paginatedModalProducts.map((p) => {
                         const pId = Number(p.id || p.product_id);
                         const isSelected = form.product_ids.includes(pId);
                         const name = p.product_name || p.productName || p.name;
@@ -646,6 +683,18 @@ export default function ShareSlugPage() {
                       })
                     )}
                   </div>
+                  {filteredProductsList.length > 0 && (
+                    <Pagination
+                      currentPage={modalProductPage}
+                      totalItems={filteredProductsList.length}
+                      pageSize={modalProductPageSize}
+                      onPageChange={setModalProductPage}
+                      onPageSizeChange={setModalProductPageSize}
+                      itemName="products"
+                      pageSizeOptions={[10, 20, 50, 100, 'All']}
+                      className="rounded-xl border border-slate-200"
+                    />
+                  )}
                 </div>
 
                 {editingItem && (

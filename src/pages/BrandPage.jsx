@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Award, Plus, Search, Edit3, X, CheckCircle2, XCircle, Upload, Filter } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import Pagination from '../components/common/Pagination';
+import BrandLogo from '../components/common/BrandLogo';
 import { useAuthContext } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import {
@@ -25,6 +27,10 @@ export default function BrandPage() {
   const [activeOnly, setActiveOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const [form, setForm] = useState({
     brands_name: '',
@@ -172,8 +178,14 @@ export default function BrandPage() {
   };
 
   const safeBrands = Array.isArray(brands) ? brands : [];
-  const filteredBrands = safeBrands.filter((b) =>
-    (b.brands_name || b.name || '').toLowerCase().includes(search.toLowerCase())
+  const filteredBrands = safeBrands
+    .filter((b) => (b.brands_name || b.name || '').toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (filteredBrands.length || 1) : Number(pageSize) || 20;
+  const paginatedBrands = filteredBrands.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
   );
 
   return (
@@ -237,7 +249,7 @@ export default function BrandPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {filteredBrands.map((brand) => {
+                  {paginatedBrands.map((brand) => {
                     const status = brand.brands_status || brand.status || 'Active';
                     const isToggling = statusTogglingId === brand.id;
 
@@ -245,21 +257,16 @@ export default function BrandPage() {
                       <tr key={brand.id} className="hover:bg-purple-50/30 transition-colors">
                         <td className="px-6 py-4 font-mono font-bold text-slate-400">{brand.id}</td>
                         <td className="px-6 py-4">
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200/80 overflow-hidden flex items-center justify-center shrink-0">
-                            <img
+                          <div className="w-28 h-11 rounded-xl bg-white border border-slate-200/80 overflow-hidden flex items-center justify-center shrink-0 shadow-2xs">
+                            <BrandLogo
+                              name={brand.brands_name || brand.name || 'Brand'}
                               src={
                                 brand.brands_image || brand.image
                                   ? getImageUrl('Brands', brand.brands_image || brand.image)
-                                  : noImageUrl
+                                  : null
                               }
-                              alt={brand.brands_name || brand.name || 'Brand'}
-                              loading="lazy"
-                              decoding="async"
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.onerror = null;
-                                e.currentTarget.src = noImageUrl;
-                              }}
+                              className="w-full h-full"
+                              imgClassName="w-full h-full object-contain p-1"
                             />
                           </div>
                         </td>
@@ -304,6 +311,17 @@ export default function BrandPage() {
               </table>
             </div>
           )}
+          {!loading && filteredBrands.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredBrands.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="brands"
+              pageSizeOptions={[10, 20, 50, 100, 'All']}
+            />
+          )}
         </div>
 
         {/* Create / Edit Brand Modal */}
@@ -341,7 +359,7 @@ export default function BrandPage() {
                     type="text"
                     value={form.brands_name}
                     onChange={(e) => setForm({ ...form, brands_name: e.target.value })}
-                    placeholder="e.g. ArtisanCraft"
+                    placeholder="e.g. Borosil"
                     required
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
                   />
@@ -358,34 +376,33 @@ export default function BrandPage() {
                       <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                     </label>
 
-                    {form.brands_image || form.image_preview ? (
+                    {form.brands_image || form.image_preview || form.brands_name ? (
                       <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 overflow-hidden shrink-0">
-                            <img
+                          <div className="w-28 h-12 rounded-lg bg-white border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
+                            <BrandLogo
+                              name={form.brands_name || 'Brand'}
                               src={
                                 form.image_preview ||
-                                (form.brands_image ? getImageUrl('Brands', form.brands_image) : noImageUrl)
+                                (form.brands_image ? getImageUrl('Brands', form.brands_image) : null)
                               }
-                              alt="Preview"
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.onerror = null;
-                                e.currentTarget.src = noImageUrl;
-                              }}
+                              className="w-full h-full"
+                              imgClassName="w-full h-full object-contain p-1"
                             />
                           </div>
                           <span className="text-xs font-medium text-emerald-600 flex items-center gap-1 truncate max-w-[160px]">
-                            <CheckCircle2 className="w-4 h-4 shrink-0" /> {form.brands_image || 'Image selected'}
+                            <CheckCircle2 className="w-4 h-4 shrink-0" /> {form.brands_image || form.brands_name || 'Brand Logo'}
                           </span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setForm((prev) => ({ ...prev, brands_image: '', image_file: null, image_preview: '' }))}
-                          className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline p-1 cursor-pointer"
-                        >
-                          Remove
-                        </button>
+                        {form.brands_image || form.image_preview ? (
+                          <button
+                            type="button"
+                            onClick={() => setForm((prev) => ({ ...prev, brands_image: '', image_file: null, image_preview: '' }))}
+                            className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline p-1 cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
