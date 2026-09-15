@@ -101,10 +101,11 @@ export const createCategory = async (categoryData, token) => {
  * URL: https://memorycreators.in/crmapi/public/api/category
  * Headers: Authorization: Bearer <token>
  */
-export const fetchCategories = async (token) => {
+export const fetchCategories = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/category', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },
@@ -293,10 +294,11 @@ export const changeCategoryStatus = updateCategoryStatus;
  * URL: https://memorycreators.in/crmapi/public/api/activeCategories
  * Headers: Authorization: Bearer <token>
  */
-export const fetchActiveCategories = async (token) => {
+export const fetchActiveCategories = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/activeCategories', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },

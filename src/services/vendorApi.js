@@ -47,10 +47,11 @@ export const createVendor = async (vendorData, token) => {
  * URL: https://memorycreators.in/crmapi/public/api/vendor
  * Headers: Authorization: Bearer <token>
  */
-export const fetchVendors = async (token) => {
+export const fetchVendors = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/vendor', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },
@@ -157,10 +158,11 @@ export const changeVendorStatus = updateVendorStatus;
  * URL: https://memorycreators.in/crmapi/public/api/activeVendors
  * Headers: Authorization: Bearer <token>
  */
-export const fetchActiveVendors = async (token) => {
+export const fetchActiveVendors = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/activeVendors', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },

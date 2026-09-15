@@ -70,10 +70,11 @@ export const createBrand = async (brandData, token) => {
  * URL: https://memorycreators.in/crmapi/public/api/brand
  * Headers: Authorization: Bearer <token>
  */
-export const fetchBrands = async (token) => {
+export const fetchBrands = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/brand', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },
@@ -84,6 +85,7 @@ export const fetchBrands = async (token) => {
     try {
       console.warn('[brandApi] /brand returned error, falling back to /activeBrands:', error.message);
       const fallbackResponse = await api.get('/activeBrands', {
+        params: { per_page: 2000, ...params },
         headers: {
           ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
         },
@@ -218,10 +220,11 @@ export const changeBrandStatus = updateBrandStatus;
  * URL: https://memorycreators.in/crmapi/public/api/activeBrands
  * Headers: Authorization: Bearer <token>
  */
-export const fetchActiveBrands = async (token) => {
+export const fetchActiveBrands = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/activeBrands', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },
@@ -231,6 +234,7 @@ export const fetchActiveBrands = async (token) => {
     try {
       console.warn('[brandApi] /activeBrands returned error, falling back to /brand:', error.message);
       const fallbackResponse = await api.get('/brand', {
+        params: { per_page: 2000, ...params },
         headers: {
           ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
         },

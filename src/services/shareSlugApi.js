@@ -63,10 +63,11 @@ export const createShareSlug = async (data, token) => {
  * URL: https://memorycreators.in/crmapi/public/api/share-slug
  * Headers: Authorization: Bearer <token>
  */
-export const fetchShareSlugs = async (token) => {
+export const fetchShareSlugs = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/share-slug', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },

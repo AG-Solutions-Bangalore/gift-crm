@@ -62,10 +62,11 @@ export const createOccasion = async (occasionData, token) => {
  * URL: https://memorycreators.in/crmapi/public/api/occasion
  * Headers: Authorization: Bearer <token>
  */
-export const fetchOccasions = async (token) => {
+export const fetchOccasions = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/occasion', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },
@@ -76,6 +77,7 @@ export const fetchOccasions = async (token) => {
     try {
       console.warn('[occasionApi] /occasion error, trying /activeOccasions fallback:', error.message);
       const fallbackResponse = await api.get('/activeOccasions', {
+        params: { per_page: 2000, ...params },
         headers: {
           ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
         },
@@ -220,10 +222,11 @@ export const changeOccasionStatus = updateOccasionStatus;
  * URL: https://memorycreators.in/crmapi/public/api/activeOccasions
  * Headers: Authorization: Bearer <token>
  */
-export const fetchActiveOccasions = async (token) => {
+export const fetchActiveOccasions = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/activeOccasions', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },

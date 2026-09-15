@@ -57,10 +57,11 @@ export const createAttribute = async (attributeData, token) => {
  * URL: https://memorycreators.in/crmapi/public/api/attribute
  * Headers: Authorization: Bearer <token>
  */
-export const fetchAttributes = async (token) => {
+export const fetchAttributes = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/attribute', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },
@@ -71,6 +72,7 @@ export const fetchAttributes = async (token) => {
     try {
       console.warn('[attributeApi] /attribute error, trying /activeAttributes fallback:', error.message);
       const fallbackResponse = await api.get('/activeAttributes', {
+        params: { per_page: 2000, ...params },
         headers: {
           ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
         },
@@ -208,10 +210,11 @@ export const updateAttributeStatus = async (id, status, token) => {
  * URL: https://memorycreators.in/crmapi/public/api/activeAttributes
  * Headers: Authorization: Bearer <token>
  */
-export const fetchActiveAttributes = async (token) => {
+export const fetchActiveAttributes = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/activeAttributes', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },
@@ -220,6 +223,7 @@ export const fetchActiveAttributes = async (token) => {
   } catch (error) {
     try {
       const fallback = await api.get('/attribute', {
+        params: { per_page: 2000, ...params },
         headers: {
           ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
         },

@@ -25,7 +25,8 @@ import {
   Box,
   FileText,
   BookmarkCheck,
-  FolderTree
+  FolderTree,
+  Edit2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthContext } from '../context/AuthContext';
@@ -357,8 +358,10 @@ export default function AddProductForm({
   const [selectedActiveAttrIds, setSelectedActiveAttrIds] = useState([]);
   const [currentSelectionValues, setCurrentSelectionValues] = useState({});
 
-  // Auto-restore selectedActiveAttrIds from existing variants if any
+  // Auto-restore selectedActiveAttrIds from existing variants only on initial load
+  const hasInitializedActiveAttrs = useRef(false);
   useEffect(() => {
+    if (hasInitializedActiveAttrs.current) return;
     if (!formData.variants || formData.variants.length === 0 || !attributes || attributes.length === 0) {
       return;
     }
@@ -385,10 +388,8 @@ export default function AddProductForm({
     });
 
     if (activeIds.length > 0) {
-      setSelectedActiveAttrIds((prev) => {
-        const set = new Set([...prev, ...activeIds]);
-        return Array.from(set);
-      });
+      setSelectedActiveAttrIds(activeIds);
+      hasInitializedActiveAttrs.current = true;
     }
   }, [formData.variants, attributes]);
 
@@ -581,6 +582,214 @@ export default function AddProductForm({
     });
   };
 
+  // State & Handlers for Editing an Existing Variant
+  const [editingVariantIndex, setEditingVariantIndex] = useState(null);
+  const [editingVariantData, setEditingVariantData] = useState(null);
+  const [editingVariantAttrValues, setEditingVariantAttrValues] = useState({});
+
+  const handleOpenEditVariantModal = (index) => {
+    const v = formData.variants?.[index];
+    if (!v) return;
+
+    const valIds = Array.isArray(v.attribute_value_ids)
+      ? v.attribute_value_ids.map(Number)
+      : v.attribute_value_id
+      ? [Number(v.attribute_value_id)]
+      : [];
+
+    // Map each attribute that this variant currently has to its value
+    const attrMap = {};
+    (attributes || []).forEach((attr) => {
+      const attrId = Number(attr.id || attr.attribute_id);
+      const vals = extractAttributeValues(attr);
+      const matchedVal = vals.find((val) => valIds.includes(Number(val.id || val.attribute_value_id)));
+      if (matchedVal) {
+        attrMap[attrId] = Number(matchedVal.id || matchedVal.attribute_value_id);
+      }
+    });
+
+    // If no attributes matched, fall back to selected active attributes
+    if (Object.keys(attrMap).length === 0) {
+      selectedActiveAttrIds.forEach((attrId) => {
+        attrMap[attrId] = '';
+      });
+    }
+
+    setEditingVariantAttrValues(attrMap);
+    setEditingVariantData({
+      ...v,
+      images: [...(v.images || [])],
+      product_mrp: v.product_mrp ?? '',
+      product_sale_price: v.product_sale_price ?? '',
+      product_bulk_price: v.product_bulk_price ?? '',
+      product_barcode: v.product_barcode ?? '',
+      product_status: v.product_status || v.variant_status || 'Active'
+    });
+    setEditingVariantIndex(index);
+  };
+
+  const handleCloseEditVariantModal = () => {
+    setEditingVariantIndex(null);
+    setEditingVariantData(null);
+    setEditingVariantAttrValues({});
+  };
+
+  const handleEditModalAttrChange = (attrId, valId) => {
+    setEditingVariantAttrValues((prev) => ({
+      ...prev,
+      [attrId]: valId ? Number(valId) : ''
+    }));
+  };
+
+  const handleRemoveModalAttribute = (attrId) => {
+    setEditingVariantAttrValues((prev) => {
+      const updated = { ...prev };
+      delete updated[attrId];
+      return updated;
+    });
+  };
+
+  const handleAddModalAttribute = (attrId) => {
+    if (!attrId) return;
+    setEditingVariantAttrValues((prev) => ({
+      ...prev,
+      [Number(attrId)]: ''
+    }));
+  };
+
+  const handleEditModalFieldChange = (field, value) => {
+    setEditingVariantData((prev) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleModalVariantImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const readPromises = files.map((file) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+          resolve({
+            file,
+            preview: uploadEvent.target.result,
+            name: file.name,
+            size: file.size,
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    const results = await Promise.all(readPromises);
+
+    setEditingVariantData((prev) => {
+      const existing = prev.images || [];
+      const existingKeys = new Set(
+        existing.map((img) => `${img.name || img.product_variant_images}_${img.file?.size || 0}`)
+      );
+
+      const uniqueNew = results
+        .filter((res) => {
+          const key = `${res.name}_${res.size}`;
+          if (existingKeys.has(key)) return false;
+          existingKeys.add(key);
+          return true;
+        })
+        .map((item, idx) => ({
+          file: item.file,
+          preview: item.preview,
+          name: item.name,
+          product_variant_images_sort_order: existing.length + idx + 1,
+        }));
+
+      return {
+        ...prev,
+        images: [...existing, ...uniqueNew],
+      };
+    });
+
+    e.target.value = '';
+  };
+
+  const handleModalRemoveVariantImage = (imageIndex) => {
+    setEditingVariantData((prev) => ({
+      ...prev,
+      images: (prev.images || []).filter((_, idx) => idx !== imageIndex),
+    }));
+  };
+
+  const handleSaveEditedVariant = () => {
+    if (editingVariantIndex === null || !editingVariantData) return;
+
+    // Filter valid attribute selections (ignore empty/removed ones)
+    const validEntries = Object.entries(editingVariantAttrValues)
+      .filter(([_, valId]) => valId !== '' && valId !== null && valId !== undefined && Number(valId) > 0);
+
+    if (validEntries.length === 0) {
+      toast.error('Please select at least one attribute option (e.g. Size).');
+      return;
+    }
+
+    if (!editingVariantData.product_mrp || Number(editingVariantData.product_mrp) <= 0) {
+      toast.error('MRP is required and must be greater than 0.');
+      return;
+    }
+
+    const selectedValIds = validEntries.map(([_, valId]) => Number(valId));
+
+    // Duplicate combination check against other variants
+    const currentComboKey = [...selectedValIds].sort((a, b) => a - b).join('-');
+    const isDuplicate = (formData.variants || []).some((v, idx) => {
+      if (idx === editingVariantIndex) return false;
+      const vKey = (v.attribute_value_ids || []).map(Number).sort((a, b) => a - b).join('-');
+      return vKey === currentComboKey;
+    });
+
+    if (isDuplicate) {
+      toast.error('Another variant with this exact attribute combination already exists.');
+      return;
+    }
+
+    // Build combination display labels
+    const comboItems = validEntries.map(([attrId, valId]) => {
+      const attrObj = (attributes || []).find((a) => Number(a.id || a.attribute_id) === Number(attrId));
+      const attrVals = attrObj ? extractAttributeValues(attrObj) : [];
+      const numValId = Number(valId);
+      const valObj = attrVals.find((v) => Number(v.id || v.attribute_value_id) === numValId);
+      return {
+        attrId: Number(attrId),
+        attrName: attrObj?.attribute_name || attrObj?.name || `Attribute #${attrId}`,
+        valId: numValId,
+        valName: valObj?.attribute_value || valObj?.value || String(numValId)
+      };
+    });
+
+    const comboLabel = comboItems.length > 0
+      ? comboItems.map((c) => `${c.attrName}: ${c.valName}`).join(' | ')
+      : `Variant #${editingVariantIndex + 1}`;
+
+    const updatedVariant = {
+      ...editingVariantData,
+      attribute_value_id: selectedValIds[0],
+      attribute_value_ids: selectedValIds,
+      combo_items: comboItems,
+      combo_label: comboLabel,
+      variant_status: editingVariantData.product_status || editingVariantData.variant_status || 'Active'
+    };
+
+    setFormData((prev) => {
+      const currentVariants = [...(prev.variants || [])];
+      currentVariants[editingVariantIndex] = updatedVariant;
+      return { ...prev, variants: currentVariants };
+    });
+
+    toast.success('Variant updated successfully!');
+    handleCloseEditVariantModal();
+  };
+
   const hasVariantsEnabled = Number(formData.has_variants) === 1;
 
   const focusElement = (id) => {
@@ -612,6 +821,11 @@ export default function AddProductForm({
       if (!formData.category_ids || formData.category_ids.length === 0) {
         toast.error('Please select at least one Category.');
         focusElement('section_categories');
+        return false;
+      }
+      if (!formData.vendor_ids || formData.vendor_ids.length === 0) {
+        toast.error('Please select at least one Vendor.');
+        focusElement('section_vendors');
         return false;
       }
       return true;
@@ -691,7 +905,8 @@ export default function AddProductForm({
         >
           <FolderTree className="w-3.5 h-3.5" />
           <span>2. Categorization</span>
-          {Array.isArray(formData.category_ids) && formData.category_ids.length > 0 && (
+          {Array.isArray(formData.category_ids) && formData.category_ids.length > 0 &&
+           Array.isArray(formData.vendor_ids) && formData.vendor_ids.length > 0 && (
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
           )}
         </button>
@@ -934,12 +1149,13 @@ export default function AddProductForm({
                 </div>
               </div>
 
-              {/* Vendors */}
+              {/* Vendors (Required) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                     <Store className="w-3.5 h-3.5 text-slate-500" />
                     <span>Vendors</span>
+                    <span className="text-rose-500">*</span>
                     <span className="text-[11px] font-semibold text-indigo-600 normal-case">
                       ({formData.vendor_ids?.length || 0} selected)
                     </span>
@@ -956,7 +1172,7 @@ export default function AddProductForm({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap max-h-48 overflow-y-auto p-3 bg-slate-50/50 rounded-xl border border-slate-200/70">
+                <div id="section_vendors" className="flex items-center gap-2 flex-wrap max-h-48 overflow-y-auto p-3 bg-slate-50/50 rounded-xl border border-slate-200/70 focus:outline-none focus:ring-2 focus:ring-purple-500/30">
                   {vendors
                     .filter((ven) => {
                       const name = ven.vendors_name || ven.vendor_name || ven.name || ven.title || '';
@@ -1470,7 +1686,7 @@ export default function AddProductForm({
                         <span className="text-xs font-bold text-slate-800 truncate" title={cardTitle}>
                           {cardTitle}
                         </span>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <select
                             value={variant.product_status || variant.variant_status || 'Active'}
                             onChange={(e) => {
@@ -1488,11 +1704,19 @@ export default function AddProductForm({
                           </select>
                           <button
                             type="button"
+                            onClick={() => handleOpenEditVariantModal(vIdx)}
+                            className="p-1 rounded text-slate-500 hover:text-purple-600 hover:bg-purple-50 transition-colors cursor-pointer"
+                            title="Edit variant options & pricing"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleRemoveVariant(vIdx)}
-                            className="text-slate-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
+                            className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Delete variant"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
@@ -1769,6 +1993,318 @@ export default function AddProductForm({
           )}
         </div>
       </div>
+
+      {/* EDIT VARIANT MODAL */}
+      {editingVariantIndex !== null && editingVariantData && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-2xl w-full overflow-hidden my-8">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
+                  <Edit2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Edit Variant #{editingVariantIndex + 1}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {editingVariantData.combo_label || 'Modify attribute options, pricing & photos'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseEditVariantModal}
+                className="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5 max-h-[72vh] overflow-y-auto">
+              {/* 1. ATTRIBUTE OPTIONS SELECTION */}
+              <div className="space-y-3 bg-purple-50/40 p-4 rounded-2xl border border-purple-100">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div>
+                    <label className="block text-xs font-bold text-purple-900 uppercase tracking-wider">
+                      Variant Option Attributes <span className="text-rose-500">*</span>
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Choose which attributes apply to this variant. You can remove unwanted attributes (like Color).
+                    </p>
+                  </div>
+
+                  {/* Add another attribute to this variant if not already present */}
+                  {(() => {
+                    const currentAttrIds = Object.keys(editingVariantAttrValues).map(Number);
+                    const availableToAdd = (attributes || []).filter(
+                      (a) => !currentAttrIds.includes(Number(a.id || a.attribute_id)) && extractAttributeValues(a).length > 0
+                    );
+                    if (availableToAdd.length === 0) return null;
+
+                    return (
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) handleAddModalAttribute(e.target.value);
+                          }}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-purple-200 bg-white text-purple-700 hover:border-purple-300 focus:outline-none focus:border-purple-500 cursor-pointer shadow-2xs"
+                        >
+                          <option value="">+ Add Attribute...</option>
+                          {availableToAdd.map((a) => {
+                            const aId = Number(a.id || a.attribute_id);
+                            const aName = a.attribute_name || a.name || `Attribute #${aId}`;
+                            return (
+                              <option key={aId} value={aId}>
+                                {aName}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {Object.keys(editingVariantAttrValues).length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {Object.keys(editingVariantAttrValues).map((attrId) => {
+                      const attrObj = (attributes || []).find((a) => Number(a.id || a.attribute_id) === Number(attrId));
+                      const attrName = attrObj?.attribute_name || attrObj?.name || `Attribute #${attrId}`;
+                      const attrValues = attrObj ? extractAttributeValues(attrObj) : [];
+                      const selectedVal = editingVariantAttrValues[attrId] || '';
+
+                      return (
+                        <div key={attrId} className="space-y-1.5 bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+                          <div className="flex items-center justify-between gap-1">
+                            <label className="block text-[11px] font-bold text-slate-700 capitalize">
+                              {attrName}
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveModalAttribute(attrId)}
+                              className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1 rounded-md transition-colors cursor-pointer"
+                              title={`Remove ${attrName} from this variant`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <select
+                            value={selectedVal}
+                            onChange={(e) => handleEditModalAttrChange(attrId, e.target.value)}
+                            className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50/50 text-slate-800 focus:outline-none focus:border-purple-600 focus:bg-white focus:ring-1 focus:ring-purple-600 cursor-pointer"
+                          >
+                            <option value="">-- None (Do not use {attrName}) --</option>
+                            {attrValues.map((v) => {
+                              const vId = Number(v.id || v.attribute_value_id);
+                              const vName = v.attribute_value || v.value || String(v);
+                              return (
+                                <option key={vId} value={vId}>
+                                  {vName}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center justify-between">
+                    <span>No attributes assigned. Please select an attribute from the dropdown above.</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. PRICING & BARCODE */}
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Pricing & Barcode
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Barcode</label>
+                    <input
+                      type="text"
+                      value={editingVariantData.product_barcode || ''}
+                      onChange={(e) => handleEditModalFieldChange('product_barcode', e.target.value)}
+                      placeholder="e.g. V72601"
+                      className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-purple-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      MRP (₹) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={editingVariantData.product_mrp ?? ''}
+                      onChange={(e) => handleEditModalFieldChange('product_mrp', e.target.value)}
+                      placeholder="0.00"
+                      required
+                      className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-purple-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Sale Price (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={editingVariantData.product_sale_price ?? ''}
+                      onChange={(e) => handleEditModalFieldChange('product_sale_price', e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 text-xs font-bold text-purple-700 rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-purple-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Bulk Price (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={editingVariantData.product_bulk_price ?? ''}
+                      onChange={(e) => handleEditModalFieldChange('product_bulk_price', e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-purple-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. STATUS */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Variant Status
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                    <input
+                      type="radio"
+                      name="modal_variant_status"
+                      value="Active"
+                      checked={(editingVariantData.product_status || editingVariantData.variant_status) !== 'Inactive'}
+                      onChange={() => {
+                        handleEditModalFieldChange('product_status', 'Active');
+                        handleEditModalFieldChange('variant_status', 'Active');
+                      }}
+                      className="w-4 h-4 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Active</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                    <input
+                      type="radio"
+                      name="modal_variant_status"
+                      value="Inactive"
+                      checked={(editingVariantData.product_status || editingVariantData.variant_status) === 'Inactive'}
+                      onChange={() => {
+                        handleEditModalFieldChange('product_status', 'Inactive');
+                        handleEditModalFieldChange('variant_status', 'Inactive');
+                      }}
+                      className="w-4 h-4 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                    <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">Inactive</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* 4. VARIANT PHOTOS */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Variant Photos ({(editingVariantData.images || []).length})</span>
+                    <span className="text-rose-500">*</span>
+                  </label>
+                  <label className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold rounded-lg cursor-pointer flex items-center gap-1 transition-colors">
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Photos</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleModalVariantImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {editingVariantData.images && editingVariantData.images.length > 0 ? (
+                  <div className="flex items-center gap-2.5 flex-wrap p-3 bg-slate-50/60 rounded-2xl border border-slate-200/80">
+                    {editingVariantData.images.map((vImg, imgIdx) => {
+                      const vRaw =
+                        vImg.preview ||
+                        (typeof vImg.product_variant_images === 'string' ? vImg.product_variant_images : '') ||
+                        (typeof vImg.product_images === 'string' ? vImg.product_variant_images : '') ||
+                        (typeof vImg.image === 'string' ? vImg.image : '') ||
+                        (typeof vImg === 'string' ? vImg : '');
+                      const vSrc =
+                        vImg.preview ||
+                        (vImg.file instanceof File ? URL.createObjectURL(vImg.file) : '') ||
+                        (vRaw ? getImageUrl('variant', vRaw) : noImageUrl);
+                      return (
+                        <div
+                          key={imgIdx}
+                          className="relative w-14 h-14 rounded-xl overflow-hidden border border-slate-200 bg-white group shadow-2xs"
+                        >
+                          <img
+                            src={vSrc}
+                            alt="Variant"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = noImageUrl;
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleModalRemoveVariantImage(imgIdx)}
+                            className="absolute inset-0 bg-rose-600/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-rose-500 italic p-3 bg-rose-50/50 rounded-xl border border-rose-100">
+                    At least one photo is required for this variant.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={handleCloseEditVariantModal}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200/70 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEditedVariant}
+                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-purple-600/20 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                <span>Save Changes</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

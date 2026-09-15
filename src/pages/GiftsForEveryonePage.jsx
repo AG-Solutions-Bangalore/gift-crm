@@ -2,12 +2,17 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Users, Plus, Search, Edit3, Trash2, X, CheckCircle2, XCircle } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import Pagination from '../components/common/Pagination';
 import { fetchGiftsForEveryone, createGiftsForEveryone, updateGiftsForEveryone, deleteGiftsForEveryone } from '../services/giftsForEveryoneApi';
 
 export default function GiftsForEveryonePage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [form, setForm] = useState({ name: '', code: '', status: 'Active', description: '' });
@@ -72,9 +77,16 @@ export default function GiftsForEveryonePage() {
     }
   };
 
-  const filteredItems = items.filter(i => 
-    i.name.toLowerCase().includes(search.toLowerCase()) || 
-    i.code.toLowerCase().includes(search.toLowerCase())
+  const safeItems = Array.isArray(items) ? items : [];
+  const filteredItems = safeItems.filter(i => 
+    (i.name || '').toLowerCase().includes(search.toLowerCase()) || 
+    (i.code || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (filteredItems.length || 1) : Number(pageSize) || 20;
+  const paginatedItems = filteredItems.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
   );
 
   return (
@@ -125,7 +137,7 @@ export default function GiftsForEveryonePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {filteredItems.map((item) => (
+                  {paginatedItems.map((item) => (
                     <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
                       <td className="px-6 py-4 font-bold text-slate-900 flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
@@ -173,6 +185,17 @@ export default function GiftsForEveryonePage() {
                 </tbody>
               </table>
             </div>
+          )}
+          {!loading && filteredItems.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredItems.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="audience tags"
+              pageSizeOptions={[10, 20, 50, 100, 'All']}
+            />
           )}
         </div>
 

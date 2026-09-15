@@ -50,10 +50,11 @@ export const createWebsiteUnique = async (data, token) => {
  * 2. GET - Fetch Website Unique List
  * Endpoint: /website-unique
  */
-export const fetchWebsiteUniques = async (token) => {
+export const fetchWebsiteUniques = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/website-unique', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },

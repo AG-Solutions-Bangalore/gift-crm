@@ -62,10 +62,11 @@ export const createTag = async (tagData, token) => {
  * URL: https://memorycreators.in/crmapi/public/api/tag
  * Headers: Authorization: Bearer <token>
  */
-export const fetchTags = async (token) => {
+export const fetchTags = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/tag', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },
@@ -76,6 +77,7 @@ export const fetchTags = async (token) => {
     try {
       console.warn('[tagApi] /tag error, trying /activeTags fallback:', error.message);
       const fallbackResponse = await api.get('/activeTags', {
+        params: { per_page: 2000, ...params },
         headers: {
           ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
         },
@@ -219,10 +221,11 @@ export const changeTagStatus = updateTagStatus;
  * URL: https://memorycreators.in/crmapi/public/api/activeTags
  * Headers: Authorization: Bearer <token>
  */
-export const fetchActiveTags = async (token) => {
+export const fetchActiveTags = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/activeTags', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },

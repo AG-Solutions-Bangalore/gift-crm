@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { MessageSquare, Search, Phone, Mail, Calendar, RefreshCw } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import Pagination from '../components/common/Pagination';
 import { useAuthContext } from '../context/AuthContext';
 import { fetchEnquiries, updateEnquiryStatus } from '../services/enquiryApi';
 
@@ -11,6 +12,10 @@ export default function EnquiryPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const loadEnquiries = async () => {
     setLoading(true);
@@ -55,6 +60,12 @@ export default function EnquiryPage() {
     const matchesStatus = statusFilter === 'All' || s === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (filteredEnquiries.length || 1) : Number(pageSize) || 10;
+  const paginatedEnquiries = filteredEnquiries.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
+  );
 
   return (
     <MainLayout>
@@ -126,7 +137,7 @@ export default function EnquiryPage() {
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
-              {filteredEnquiries.map((enq) => {
+              {paginatedEnquiries.map((enq) => {
                 const enqId = enq.id || enq.enquiry_id;
                 const cName = enq.customer_name || enq.name || enq.customerName || 'Customer';
                 const pName = enq.product_name || enq.productName || null;
@@ -188,6 +199,17 @@ export default function EnquiryPage() {
                 );
               })}
             </div>
+          )}
+          {!loading && filteredEnquiries.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredEnquiries.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="enquiries"
+              pageSizeOptions={[5, 10, 25, 50, 'All']}
+            />
           )}
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Store, Plus, Search, Edit3, X, CheckCircle2, XCircle, Filter, Phone, MapPin, User } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import Pagination from '../components/common/Pagination';
 import { useAuthContext } from '../context/AuthContext';
 import {
   fetchVendors,
@@ -23,6 +24,10 @@ export default function VendorPage() {
   const [activeOnly, setActiveOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVendor, setEditingVendor] = useState(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const [form, setForm] = useState({
     vendor_name: '',
@@ -152,15 +157,23 @@ export default function VendorPage() {
   };
 
   const safeVendors = Array.isArray(vendors) ? vendors : [];
-  const filteredVendors = safeVendors.filter((v) => {
-    const term = search.toLowerCase();
-    return (
-      (v.vendor_name || v.name || '').toLowerCase().includes(term) ||
-      (v.contact_name || '').toLowerCase().includes(term) ||
-      (v.vendor_mobile || v.mobile || '').toLowerCase().includes(term) ||
-      (v.vendor_address || v.address || '').toLowerCase().includes(term)
-    );
-  });
+  const filteredVendors = safeVendors
+    .filter((v) => {
+      const term = search.toLowerCase();
+      return (
+        (v.vendor_name || v.name || '').toLowerCase().includes(term) ||
+        (v.contact_name || '').toLowerCase().includes(term) ||
+        (v.vendor_mobile || v.mobile || '').toLowerCase().includes(term) ||
+        (v.vendor_address || v.address || '').toLowerCase().includes(term)
+      );
+    })
+    .sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (filteredVendors.length || 1) : Number(pageSize) || 20;
+  const paginatedVendors = filteredVendors.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
+  );
 
   return (
     <MainLayout>
@@ -225,7 +238,7 @@ export default function VendorPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {filteredVendors.map((vendor) => {
+                  {paginatedVendors.map((vendor) => {
                     const status = vendor.vendor_status || vendor.status || 'Active';
                     const isToggling = statusTogglingId === vendor.id;
 
@@ -295,6 +308,17 @@ export default function VendorPage() {
                 </tbody>
               </table>
             </div>
+          )}
+          {!loading && filteredVendors.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredVendors.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="vendors"
+              pageSizeOptions={[10, 20, 50, 100, 'All']}
+            />
           )}
         </div>
 

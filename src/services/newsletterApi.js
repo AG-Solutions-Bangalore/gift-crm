@@ -18,10 +18,11 @@ const extractErrorMessage = (error, defaultMsg = 'An error occurred. Please try 
  * Endpoint: /newsletter
  * Headers: Authorization: Bearer <token>
  */
-export const fetchNewsletters = async (token) => {
+export const fetchNewsletters = async (token, params = {}) => {
   const activeToken = token || localStorage.getItem('gift_token');
   try {
     const response = await api.get('/newsletter', {
+      params: { per_page: 2000, ...params },
       headers: {
         ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
       },

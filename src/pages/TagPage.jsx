@@ -15,6 +15,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import Pagination from '../components/common/Pagination';
 import { useAuthContext } from '../context/AuthContext';
 import {
   fetchTags,
@@ -37,6 +38,10 @@ export default function TagPage() {
   const [activeOnly, setActiveOnly] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Form State matching backend requirements
   const [form, setForm] = useState({
@@ -186,12 +191,21 @@ export default function TagPage() {
   };
 
   const safeTags = Array.isArray(tags) ? tags : [];
-  const filteredTags = safeTags.filter((t) => {
-    const name = (t.tags_name || t.name || '').toLowerCase();
-    const slug = (t.tags_slug || t.slug || '').toLowerCase();
-    const q = search.toLowerCase();
-    return name.includes(q) || slug.includes(q);
-  });
+  const filteredTags = safeTags
+    .filter((t) => {
+      const term = search.toLowerCase();
+      return (
+        (t.tags_name || t.name || '').toLowerCase().includes(term) ||
+        (t.tags_slug || t.slug || '').toLowerCase().includes(term)
+      );
+    })
+    .sort((a, b) => Number(a.id || a.tags_id || 0) - Number(b.id || b.tags_id || 0));
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (filteredTags.length || 1) : Number(pageSize) || 20;
+  const paginatedTags = filteredTags.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
+  );
 
   return (
     <MainLayout>
@@ -259,7 +273,7 @@ export default function TagPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {filteredTags.map((tagItem) => {
+                  {paginatedTags.map((tagItem) => {
                     const tagId = tagItem.id || tagItem.tags_id;
                     const name = tagItem.tags_name || tagItem.name || '-';
                     const slug = tagItem.tags_slug || tagItem.slug || '-';
@@ -328,6 +342,17 @@ export default function TagPage() {
                 </tbody>
               </table>
             </div>
+          )}
+          {!loading && filteredTags.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredTags.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="tags"
+              pageSizeOptions={[10, 20, 50, 100, 'All']}
+            />
           )}
         </div>
 

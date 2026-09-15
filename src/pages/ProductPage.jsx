@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
 import AutoMovingImage from '../components/common/AutoMovingImage';
+import Pagination from '../components/common/Pagination';
 import { useAuthContext } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import { fetchProducts, fetchProductById, updateProductStatus, importProduct, importProductImages } from '../services/productApi';
@@ -155,6 +156,10 @@ export default function ProductPage() {
   const [selectedViewProduct, setSelectedViewProduct] = useState(null);
   const [viewingVariantsProduct, setViewingVariantsProduct] = useState(null);
   const [expandedProductIds, setExpandedProductIds] = useState(new Set());
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Import Products via Excel state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -381,6 +386,8 @@ export default function ProductPage() {
         params.status = status;
         params.product_status = status;
       }
+      // Ensure backend returns complete catalog of 700-800+ products
+      params.per_page = 2000;
 
       const res = await fetchProducts(token, params);
       let items = [];
@@ -405,6 +412,7 @@ export default function ProductPage() {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
     loadProducts(debouncedSearch, selectedStatus);
   }, [token, debouncedSearch, selectedStatus]);
 
@@ -691,93 +699,124 @@ export default function ProductPage() {
     return matchesSearch && currentStatus.toLowerCase() === selectedStatus.toLowerCase();
   });
 
+  // Always sorted First to Last (ID Ascending: 1, 2, 3... 800)
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    const idA = Number(a.id || a.product_id || 0);
+    const idB = Number(b.id || b.product_id || 0);
+    return idA - idB;
+  });
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (sortedProducts.length || 1) : Number(pageSize) || 20;
+  const paginatedProducts = sortedProducts.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
+  );
+
   return (
     <MainLayout>
       <div className="space-y-6 select-none">
         {/* Control Bar */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search products by name, barcode, brand..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all"
-            />
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          {/* Top Row: Search Input + Status Filter + Table/Grid View */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-lg">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search products by name, barcode, brand..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 self-end md:self-auto">
+              {/* Status Filter */}
+              <div className="relative">
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => {
+                    setSelectedStatus(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 appearance-none pr-8 cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                >
+                  <option value="ALL">All Statuses</option>
+                  {STATUS_OPTIONS.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-3.5 pointer-events-none" />
+              </div>
+
+              {/* View Mode Toggle */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    viewMode === 'table' ? 'bg-white text-purple-600 shadow-2xs' : 'text-slate-500'
+                  }`}
+                >
+                  Table
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    viewMode === 'grid' ? 'bg-white text-purple-600 shadow-2xs' : 'text-slate-500'
+                  }`}
+                >
+                  Grid
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Status Filter */}
-            <div className="relative">
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 appearance-none pr-8 cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-              >
-                <option value="ALL">All Statuses</option>
-                {STATUS_OPTIONS.map((st) => (
-                  <option key={st} value={st}>
-                    {st}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-3 pointer-events-none" />
+          {/* Bottom Row: Item Summary + Actions Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
+            <div className="text-xs text-slate-500 font-medium">
+              Total Products: <span className="font-bold text-slate-800">{sortedProducts.length}</span>
             </div>
 
-            {/* View Mode Toggle */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-2.5 flex-wrap justify-end">
               <button
-                onClick={() => setViewMode('table')}
-                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  viewMode === 'table' ? 'bg-white text-purple-600 shadow-2xs' : 'text-slate-500'
-                }`}
+                type="button"
+                onClick={() => {
+                  setImportFile(null);
+                  setIsImportModalOpen(true);
+                }}
+                className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 hover:border-emerald-300 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] group"
+                title="Import products from Excel (.xlsx, .xls) or CSV"
               >
-                Table
+                <ExcelIcon className="w-4 h-4 group-hover:scale-110 transition-transform shrink-0" />
+                <span>Import</span>
               </button>
+
               <button
-                onClick={() => setViewMode('grid')}
-                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  viewMode === 'grid' ? 'bg-white text-purple-600 shadow-2xs' : 'text-slate-500'
-                }`}
+                type="button"
+                onClick={() => {
+                  setSelectedImageFiles([]);
+                  setIsImportImagesModalOpen(true);
+                }}
+                className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 hover:border-indigo-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98] group"
+                title="Bulk upload Product & Variant images"
               >
-                Grid
+                <ImageIcon className="w-4 h-4 group-hover:scale-110 transition-transform shrink-0 text-indigo-600" />
+                <span>Import Images</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/products/add')}
+                className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-600/20 transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add New Product</span>
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setImportFile(null);
-                setIsImportModalOpen(true);
-              }}
-              className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 hover:border-emerald-300 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] group"
-              title="Import products from Excel (.xlsx, .xls) or CSV"
-            >
-              <ExcelIcon className="w-4 h-4 group-hover:scale-110 transition-transform shrink-0" />
-              <span>Import</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedImageFiles([]);
-                setIsImportImagesModalOpen(true);
-              }}
-              className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 hover:border-indigo-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98] group"
-              title="Bulk upload Product & Variant images"
-            >
-              <ImageIcon className="w-4 h-4 group-hover:scale-110 transition-transform shrink-0 text-indigo-600" />
-              <span>Import Images</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/products/add')}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add New Product</span>
-            </button>
           </div>
         </div>
 
@@ -810,7 +849,7 @@ export default function ProductPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
-                  {filteredProducts.map((p) => {
+                  {paginatedProducts.map((p) => {
                     const pId = p.id || p.product_id;
                     const name = p.product_name || p.productName || p.name || '-';
                     const brandName = getBrandName(p);
@@ -919,113 +958,136 @@ export default function ProductPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={currentPage}
+              totalItems={sortedProducts.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemName="products"
+              pageSizeOptions={[10, 20, 50, 100, 200, 'All']}
+            />
           </div>
         ) : (
           /* Grid View */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map((p) => {
-              const pId = p.id || p.product_id;
-              const name = p.product_name || p.productName || p.name || '-';
-              const brandName = getBrandName(p);
-              const variantInfo = getVariantInfo(p);
-              const pricing = getProductPricing(p);
-              const status = p.product_status || p.status || 'Pending';
-              const statusCfg = STATUS_CONFIG[status] || STATUS_CONFIG['Pending'];
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {paginatedProducts.map((p) => {
+                const pId = p.id || p.product_id;
+                const name = p.product_name || p.productName || p.name || '-';
+                const brandName = getBrandName(p);
+                const variantInfo = getVariantInfo(p);
+                const pricing = getProductPricing(p);
+                const status = p.product_status || p.status || 'Pending';
+                const statusCfg = STATUS_CONFIG[status] || STATUS_CONFIG['Pending'];
 
-              const mainImage = getProductImageUrl(p);
+                const mainImage = getProductImageUrl(p);
 
-              return (
-                <div
-                  key={pId}
-                  className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden hover:shadow-md transition-all group flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="h-44 bg-slate-100 relative overflow-hidden flex items-center justify-center">
-                      <AutoMovingImage
-                        product={p}
-                        alt={name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        showDots={true}
-                        showCounter={true}
-                        fallbackSrc={noImageUrl}
-                        interval={2500}
-                      />
-                      <span
-                        className={`absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs z-10 ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}
-                      >
-                        {status}
-                      </span>
-                    </div>
-
-                    <div className="p-5 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 truncate max-w-[120px]">
-                          {getCategoryName(p)}
+                return (
+                  <div
+                    key={pId}
+                    className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden hover:shadow-md transition-all group flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="h-44 bg-slate-100 relative overflow-hidden flex items-center justify-center">
+                        <AutoMovingImage
+                          product={p}
+                          alt={name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          showDots={true}
+                          showCounter={true}
+                          fallbackSrc={noImageUrl}
+                          interval={2500}
+                        />
+                        <span
+                          className={`absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs z-10 ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}
+                        >
+                          {status}
                         </span>
-                        {variantInfo.hasVariants ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenVariantsModal(p)}
-                            className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 inline-flex items-center gap-1 hover:bg-purple-100 transition-colors cursor-pointer"
-                          >
-                            <Sparkles className="w-2.5 h-2.5" />
-                            <span>{variantInfo.label}</span>
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 font-medium">Single</span>
-                        )}
                       </div>
-                      <div className="overflow-hidden">
-                        <AutoScrollProductName name={name} maxLength={22} className="text-sm" />
-                      </div>
-                      <p className="text-xs font-medium text-slate-400">
-                        Brand: <span className="text-slate-700 font-semibold">{brandName}</span>
-                      </p>
-                      <div className="flex items-center gap-2 pt-1">
-                        <span className="text-sm font-bold text-slate-900">
-                          {pricing.mrp !== '—' ? `₹ ${pricing.mrp}` : '—'}
-                        </span>
-                        {pricing.salePrice && pricing.salePrice !== '—' && (
-                          <span className="text-xs font-semibold text-purple-600">
-                            Sale: ₹ {pricing.salePrice}
+
+                      <div className="p-5 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 truncate max-w-[120px]">
+                            {getCategoryName(p)}
                           </span>
-                        )}
+                          {variantInfo.hasVariants ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenVariantsModal(p)}
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 inline-flex items-center gap-1 hover:bg-purple-100 transition-colors cursor-pointer"
+                            >
+                              <Sparkles className="w-2.5 h-2.5" />
+                              <span>{variantInfo.label}</span>
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-medium">Single</span>
+                          )}
+                        </div>
+                        <div className="overflow-hidden">
+                          <AutoScrollProductName name={name} maxLength={22} className="text-sm" />
+                        </div>
+                        <p className="text-xs font-medium text-slate-400">
+                          Brand: <span className="text-slate-700 font-semibold">{brandName}</span>
+                        </p>
+                        <div className="flex items-center gap-2 pt-1">
+                          <span className="text-sm font-bold text-slate-900">
+                            {pricing.mrp !== '—' ? `₹ ${pricing.mrp}` : '—'}
+                          </span>
+                          {pricing.salePrice && pricing.salePrice !== '—' && (
+                            <span className="text-xs font-semibold text-purple-600">
+                              Sale: ₹ {pricing.salePrice}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="px-5 py-3.5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span className="font-mono text-slate-400 font-bold">#{pId}</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenViewProductModal(p)}
+                          title="View Details"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-white transition-colors cursor-pointer border border-slate-200"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/products/duplicate/${pId}`)}
+                          title="Duplicate Product (Clone to New)"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-white transition-colors cursor-pointer border border-slate-200"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/products/edit/${pId}`)}
+                          title="Edit Product"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-white transition-colors cursor-pointer border border-slate-200"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   </div>
+                );
+              })}
+            </div>
 
-                  <div className="px-5 py-3.5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <span className="font-mono text-slate-400 font-bold">#{pId}</span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenViewProductModal(p)}
-                        title="View Details"
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-white transition-colors cursor-pointer border border-slate-200"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/products/duplicate/${pId}`)}
-                        title="Duplicate Product (Clone to New)"
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-white transition-colors cursor-pointer border border-slate-200"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/products/edit/${pId}`)}
-                        title="Edit Product"
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-white transition-colors cursor-pointer border border-slate-200"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={sortedProducts.length}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                itemName="products"
+                pageSizeOptions={[12, 24, 48, 96, 200, 'All']}
+              />
+            </div>
           </div>
         )}
 
@@ -1311,9 +1373,11 @@ export default function ProductPage() {
                                 {vd.status}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400 mt-0.5">
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono text-slate-400 mt-0.5">
                               {vd.sku && <span>SKU: {vd.sku}</span>}
-                              {vd.barcode !== '—' && <span>• Barcode: {vd.barcode}</span>}
+                              {vd.barcode && vd.barcode !== '—' && <span>• Barcode: {vd.barcode}</span>}
+                              {vd.weight && <span>• Weight: {vd.weight}g</span>}
+                              {vd.hasDims && <span>• Dims: {vd.dimensionsText}</span>}
                             </div>
                           </div>
                         </div>
@@ -1336,26 +1400,6 @@ export default function ProductPage() {
                               <span className="text-xs font-bold text-slate-800">₹ {vd.bulkPrice}</span>
                             </div>
                           )}
-                        </div>
-                      </div>
-
-                      {/* Specs Row */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-[11px]">
-                        <div>
-                          <span className="text-slate-400 font-medium">Weight: </span>
-                          <span className="font-semibold text-slate-700">{vd.weight}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 font-medium">Dimensions: </span>
-                          <span className="font-semibold text-slate-700">{vd.dimensions}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 font-medium">Barcode: </span>
-                          <span className="font-mono text-slate-700">{vd.barcode}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 font-medium">SKU: </span>
-                          <span className="font-mono text-slate-700">{vd.sku || '—'}</span>
                         </div>
                       </div>
                     </div>

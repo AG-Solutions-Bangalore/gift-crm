@@ -15,6 +15,7 @@ import {
   Clock
 } from 'lucide-react';
 import MainLayout from '../components/layout/MainLayout';
+import Pagination from '../components/common/Pagination';
 import { useAuthContext } from '../context/AuthContext';
 import {
   fetchWebsiteUniques,
@@ -33,6 +34,10 @@ export default function WebsiteUniquePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -185,15 +190,22 @@ export default function WebsiteUniquePage() {
     return found ? found.categories_name || found.name : `Sub #${id}`;
   };
 
-  const filteredItems = items.filter((item) => {
-    const heading = (item.website_heading || item.heading || '').toLowerCase();
+  const safeItems = Array.isArray(items) ? items : [];
+  const filteredItems = safeItems.filter((item) => {
+    const heading = (item.website_heading || '').toLowerCase();
     const q = searchQuery.toLowerCase();
     const matchesSearch = heading.includes(q);
 
     if (statusFilter === 'ALL') return matchesSearch;
-    const s = (item.status || 'Active').toLowerCase();
-    return matchesSearch && s === statusFilter.toLowerCase();
+    const st = (item.status || 'Active').toLowerCase();
+    return matchesSearch && st === statusFilter.toLowerCase();
   });
+
+  const numericPageSize = pageSize === 'all' || pageSize === 'All' ? (filteredItems.length || 1) : Number(pageSize) || 12;
+  const paginatedItems = filteredItems.slice(
+    (currentPage - 1) * numericPageSize,
+    (currentPage - 1) * numericPageSize + numericPageSize
+  );
 
   return (
     <MainLayout>
@@ -268,8 +280,9 @@ export default function WebsiteUniquePage() {
             <p className="text-xs text-slate-400">Click 'Add Section' to highlight curated categories on the website.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredItems.map((item) => {
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {paginatedItems.map((item) => {
               const id = item.id || item.website_unique_id;
               const isActive = (item.status || 'Active') === 'Active';
 
@@ -373,6 +386,18 @@ export default function WebsiteUniquePage() {
                 </div>
               );
             })}
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filteredItems.length}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                itemName="sections"
+                pageSizeOptions={[6, 12, 24, 48, 'All']}
+              />
+            </div>
           </div>
         )}
 
